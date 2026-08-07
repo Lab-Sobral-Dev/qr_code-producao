@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Controle de Alcool 70%</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">Controle interno</p>
+          <h1>Alcool 70%</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="button ghost" id="printButton" type="button">Imprimir</button>
+          <button class="button primary" id="newButton" type="button">Novo vidro</button>
+        </div>
+      </section>
+
+      <section class="public-view hidden" id="publicView" aria-live="polite">
+        <a class="back-link" href="./">Voltar ao controle</a>
+        <div class="public-card">
+          <p class="eyebrow">Etiqueta do vidro</p>
+          <h2 id="publicTag">-</h2>
+          <dl class="details-grid">
+            <div>
+              <dt>Endereco</dt>
+              <dd id="publicAddress">-</dd>
+            </div>
+            <div>
+              <dt>Validade</dt>
+              <dd id="publicExpiration">-</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd id="publicStatus">-</dd>
+            </div>
+            <div>
+              <dt>Responsavel</dt>
+              <dd id="publicOwner">-</dd>
+            </div>
+          </dl>
+          <p class="notes" id="publicNotes"></p>
+        </div>
+      </section>
+
+      <section class="dashboard" id="dashboard">
+        <form class="panel form-panel" id="itemForm">
+          <input id="itemId" type="hidden" />
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Cadastro</p>
+              <h2 id="formTitle">Novo vidro</h2>
+            </div>
+            <button class="button icon-button" id="clearButton" type="button" title="Limpar formulario">x</button>
+          </div>
+
+          <label>
+            Tag do alcool
+            <input id="tagInput" name="tag" type="text" placeholder="ALC-001" required />
+          </label>
+
+          <label>
+            Endereco / setor
+            <input id="addressInput" name="address" type="text" placeholder="Laboratorio - Bancada 2" required />
+          </label>
+
+          <label>
+            Validade
+            <input id="expirationInput" name="expiration" type="date" required />
+          </label>
+
+          <label>
+            Responsavel
+            <input id="ownerInput" name="owner" type="text" placeholder="Nome do responsavel" />
+          </label>
+
+          <label>
+            Observacoes
+            <textarea id="notesInput" name="notes" rows="3" placeholder="Lote, fornecedor ou instrucoes internas"></textarea>
+          </label>
+
+          <div class="form-actions">
+            <button class="button primary" type="submit">Salvar</button>
+            <button class="button danger" id="deleteButton" type="button" disabled>Excluir</button>
+          </div>
+        </form>
+
+        <section class="panel list-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Registros</p>
+              <h2>Vidros cadastrados</h2>
+            </div>
+            <input class="search" id="searchInput" type="search" placeholder="Buscar tag ou endereco" />
+          </div>
+
+          <div class="empty-state hidden" id="emptyState">
+            Nenhum vidro cadastrado.
+          </div>
+
+          <div class="items-grid" id="itemsGrid"></div>
+        </section>
+      </section>
+    </main>
+
+    <template id="itemTemplate">
+      <article class="item-card">
+        <div class="item-main">
+          <div>
+            <p class="status-pill"></p>
+            <h3></h3>
+          </div>
+          <img class="qr-code" alt="QR Code do vidro" />
+        </div>
+        <dl>
+          <div>
+            <dt>Endereco</dt>
+            <dd class="address"></dd>
+          </div>
+          <div>
+            <dt>Validade</dt>
+            <dd class="expiration"></dd>
+          </div>
+        </dl>
+        <div class="card-actions">
+          <button class="button small edit-button" type="button">Editar</button>
+          <a class="button small ghost open-link" target="_blank" rel="noreferrer">Abrir</a>
+        </div>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
