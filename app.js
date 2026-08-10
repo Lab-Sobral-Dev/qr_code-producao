@@ -240,7 +240,7 @@ function renderDetailView() {
   tableSection.classList.add("hidden");
   backListButton.classList.remove("hidden");
   emptyState.classList.toggle("hidden", Boolean(item));
-  itemsGrid.className = "items-grid";
+  itemsGrid.className = "items-grid detail-grid";
 
   if (item) {
     renderQrCards([item]);
