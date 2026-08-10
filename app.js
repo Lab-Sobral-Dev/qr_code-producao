@@ -3,6 +3,7 @@ const DEFAULT_PUBLIC_BASE_URL = "https://lab-sobral-dev.github.io/qr_code-produc
 const SUPABASE_URL = "https://deierwldemkevanfxrwg.supabase.co";
 const SUPABASE_KEY = "sb_publishable_MjALJQJiaIt-fLg-YBLWPw_XLLcbm-5";
 const SUPABASE_TABLE = "alcool_registros";
+const MIN_EXPIRATION_DATE = "2026-01-01";
 const MAX_EXPIRATION_DATE = "2100-12-31";
 
 const state = {
@@ -74,7 +75,7 @@ async function handleSubmit(event) {
   };
 
   if (!isAllowedExpiration(record.expiration)) {
-    window.alert("A validade deve ser no maximo 31/12/2100.");
+    window.alert("A validade deve estar entre 01/01/2026 e 31/12/2100.");
     return;
   }
 
@@ -355,7 +356,7 @@ function isValidItem(item) {
 }
 
 function isAllowedExpiration(dateValue) {
-  return Boolean(dateValue && dateValue <= MAX_EXPIRATION_DATE);
+  return Boolean(dateValue && dateValue >= MIN_EXPIRATION_DATE && dateValue <= MAX_EXPIRATION_DATE);
 }
 
 async function refreshItemsFromDatabase() {
