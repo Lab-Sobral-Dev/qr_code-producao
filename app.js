@@ -9,6 +9,7 @@ const MAX_EXPIRATION_DATE = "2100-12-31";
 const state = {
   items: loadItems(),
   filter: "",
+  restoreFilterAfterPrint: null,
 };
 
 const form = document.querySelector("#itemForm");
@@ -43,7 +44,7 @@ searchInput.addEventListener("input", (event) => {
   state.filter = event.target.value.trim().toLowerCase();
   renderItems();
 });
-window.addEventListener("afterprint", clearSelectedPrintItem);
+window.addEventListener("afterprint", handleAfterPrint);
 
 render();
 
@@ -193,9 +194,25 @@ function printItem(id) {
   window.print();
 }
 
-function printAllItems() {
+async function printAllItems() {
   clearSelectedPrintItem();
+  state.restoreFilterAfterPrint = state.filter;
+  state.filter = "";
+  searchInput.value = "";
+  renderItems();
+  await waitForQrCodes(2500);
   window.print();
+}
+
+function handleAfterPrint() {
+  clearSelectedPrintItem();
+
+  if (state.restoreFilterAfterPrint !== null) {
+    state.filter = state.restoreFilterAfterPrint;
+    searchInput.value = state.restoreFilterAfterPrint;
+    state.restoreFilterAfterPrint = null;
+    renderItems();
+  }
 }
 
 function clearSelectedPrintItem() {
@@ -203,6 +220,24 @@ function clearSelectedPrintItem() {
   document.querySelectorAll(".print-target").forEach((element) => {
     element.classList.remove("print-target");
   });
+}
+
+function waitForQrCodes(timeoutMs) {
+  const images = [...itemsGrid.querySelectorAll(".qr-code")];
+  const imageLoads = images.map((image) => {
+    if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      image.addEventListener("load", resolve, { once: true });
+      image.addEventListener("error", resolve, { once: true });
+    });
+  });
+
+  const timeout = new Promise((resolve) => {
+    window.setTimeout(resolve, timeoutMs);
+  });
+
+  return Promise.race([Promise.all(imageLoads), timeout]);
 }
 
 async function renderPublicView() {
