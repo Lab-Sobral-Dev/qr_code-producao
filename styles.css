@@ -396,6 +396,14 @@ dd {
     break-inside: avoid;
   }
 
+  .print-selected .item-card {
+    display: none;
+  }
+
+  .print-selected .item-card.print-target {
+    display: block;
+  }
+
   .qr-code {
     display: block;
     width: 38mm;

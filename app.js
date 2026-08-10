@@ -17,7 +17,6 @@ const formTitle = document.querySelector("#formTitle");
 const deleteButton = document.querySelector("#deleteButton");
 const clearButton = document.querySelector("#clearButton");
 const newButton = document.querySelector("#newButton");
-const printButton = document.querySelector("#printButton");
 const searchInput = document.querySelector("#searchInput");
 const itemsGrid = document.querySelector("#itemsGrid");
 const emptyState = document.querySelector("#emptyState");
@@ -29,11 +28,11 @@ form.addEventListener("submit", handleSubmit);
 deleteButton.addEventListener("click", handleDelete);
 clearButton.addEventListener("click", resetForm);
 newButton.addEventListener("click", resetForm);
-printButton.addEventListener("click", () => window.print());
 searchInput.addEventListener("input", (event) => {
   state.filter = event.target.value.trim().toLowerCase();
   renderItems();
 });
+window.addEventListener("afterprint", clearSelectedPrintItem);
 
 render();
 
@@ -124,6 +123,7 @@ function renderItems() {
     const status = getExpirationStatus(item.expiration);
     const publicUrl = getPublicUrl(item.id);
 
+    node.dataset.itemId = item.id;
     node.querySelector("h3").textContent = item.tag;
     node.querySelector(".address").textContent = item.address;
     node.querySelector(".expiration").textContent = formatDate(item.expiration);
@@ -139,8 +139,26 @@ function renderItems() {
 
     node.querySelector(".open-link").href = publicUrl;
     node.querySelector(".edit-button").addEventListener("click", () => editItem(item.id));
+    node.querySelector(".print-item-button").addEventListener("click", () => printItem(item.id));
 
     itemsGrid.appendChild(node);
+  });
+}
+
+function printItem(id) {
+  clearSelectedPrintItem();
+  const selectedCard = itemsGrid.querySelector(`[data-item-id="${CSS.escape(id)}"]`);
+  if (!selectedCard) return;
+
+  document.body.classList.add("print-selected");
+  selectedCard.classList.add("print-target");
+  window.print();
+}
+
+function clearSelectedPrintItem() {
+  document.body.classList.remove("print-selected");
+  document.querySelectorAll(".print-target").forEach((element) => {
+    element.classList.remove("print-target");
   });
 }
 
