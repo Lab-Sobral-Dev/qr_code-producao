@@ -206,6 +206,81 @@ textarea {
   margin-top: 18px;
 }
 
+.table-section {
+  margin-top: 18px;
+}
+
+.table-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.table-heading h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.control-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.control-table th,
+.control-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.control-table th {
+  background: var(--orange-50);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.control-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.table-status {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: var(--orange-50);
+  color: var(--primary-dark);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.table-status.expired {
+  background: #ffe8e8;
+  color: var(--danger);
+}
+
+.table-status.warning {
+  background: #fff0d4;
+  color: var(--warning);
+}
+
 .item-card {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -364,6 +439,7 @@ dd {
   .form-panel,
   .panel-heading,
   .search,
+  .table-section,
   .empty-state,
   .status-pill,
   .item-card h3,

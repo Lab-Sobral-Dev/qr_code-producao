@@ -18,6 +18,7 @@ const form = document.querySelector("#itemForm");
 const itemId = document.querySelector("#itemId");
 const tagInput = document.querySelector("#tagInput");
 const addressInput = document.querySelector("#addressInput");
+const areaInput = document.querySelector("#areaInput");
 const expirationInput = document.querySelector("#expirationInput");
 const ownerInput = document.querySelector("#ownerInput");
 const solutionInput = document.querySelector("#solutionInput");
@@ -31,6 +32,8 @@ const newButton = document.querySelector("#newButton");
 const printAllButton = document.querySelector("#printAllButton");
 const searchInput = document.querySelector("#searchInput");
 const itemsGrid = document.querySelector("#itemsGrid");
+const controlTableBody = document.querySelector("#controlTableBody");
+const tableSection = document.querySelector("#tableSection");
 const emptyState = document.querySelector("#emptyState");
 const itemTemplate = document.querySelector("#itemTemplate");
 const topbar = document.querySelector("#topbar");
@@ -72,6 +75,7 @@ async function handleSubmit(event) {
     id: itemId.value,
     tag: tagInput.value.trim(),
     address: addressInput.value.trim(),
+    area: areaInput.value.trim(),
     expiration: expirationInput.value,
     owner: ownerInput.value.trim(),
     solution: solutionInput.value.trim(),
@@ -139,6 +143,7 @@ function editItem(id) {
   itemId.value = item.id;
   tagInput.value = item.tag;
   addressInput.value = item.address;
+  areaInput.value = item.area || "";
   expirationInput.value = item.expiration;
   ownerInput.value = item.owner || "";
   solutionInput.value = item.solution || "";
@@ -159,12 +164,14 @@ function resetForm() {
 
 function renderItems() {
   const filteredItems = state.items.filter((item) => {
-    const searchable = `${item.tag} ${item.address} ${item.owner || ""} ${item.solution || ""} ${item.prepCode || ""}`.toLowerCase();
+    const searchable = `${item.tag} ${item.address} ${item.area || ""} ${item.owner || ""} ${item.solution || ""} ${item.prepCode || ""}`.toLowerCase();
     return searchable.includes(state.filter);
   });
 
   itemsGrid.innerHTML = "";
   emptyState.classList.toggle("hidden", filteredItems.length > 0);
+  tableSection.classList.toggle("hidden", filteredItems.length === 0);
+  renderControlTable(filteredItems);
 
   filteredItems.forEach((item) => {
     const node = itemTemplate.content.firstElementChild.cloneNode(true);
@@ -174,7 +181,8 @@ function renderItems() {
     node.dataset.itemId = item.id;
     node.querySelector("h3").textContent = item.tag;
     node.querySelector(".address").textContent = item.address;
-    node.querySelector(".print-label").textContent = item.address;
+    node.querySelector(".area").textContent = item.area || "Nao informado";
+    node.querySelector(".print-label").textContent = item.area ? `${item.address} - ${item.area}` : item.address;
     node.querySelector(".solution").textContent = item.solution || "Nao informado";
     node.querySelector(".expiration").textContent = formatDate(item.expiration);
     node.querySelector(".prep-code").textContent = item.prepCode || "Nao informado";
@@ -193,6 +201,38 @@ function renderItems() {
     node.querySelector(".print-item-button").addEventListener("click", () => printItem(item.id));
 
     itemsGrid.appendChild(node);
+  });
+}
+
+function renderControlTable(items) {
+  controlTableBody.innerHTML = "";
+
+  items.forEach((item) => {
+    const status = getExpirationStatus(item.expiration);
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td><span class="table-status"></span></td>
+      <td></td>
+    `;
+
+    const cells = row.querySelectorAll("td");
+    cells[0].textContent = item.tag;
+    cells[1].textContent = item.address;
+    cells[2].textContent = item.area || "-";
+    cells[3].textContent = item.solution || "Nao informado";
+    cells[4].textContent = formatDate(item.expiration);
+    cells[6].textContent = item.prepCode || "Nao informado";
+
+    const statusElement = row.querySelector(".table-status");
+    statusElement.textContent = status.label;
+    statusElement.classList.add(status.kind);
+
+    controlTableBody.appendChild(row);
   });
 }
 
@@ -267,6 +307,7 @@ async function renderPublicView() {
   if (!item) {
     document.querySelector("#publicTag").textContent = "Registro nao encontrado";
     document.querySelector("#publicAddress").textContent = "Confira se o QR Code foi gerado neste navegador.";
+    document.querySelector("#publicArea").textContent = "-";
     document.querySelector("#publicExpiration").textContent = "-";
     document.querySelector("#publicStatus").textContent = "-";
     document.querySelector("#publicOwner").textContent = "-";
@@ -280,6 +321,7 @@ async function renderPublicView() {
   const status = getExpirationStatus(item.expiration);
   document.querySelector("#publicTag").textContent = item.tag;
   document.querySelector("#publicAddress").textContent = item.address;
+  document.querySelector("#publicArea").textContent = item.area || "Nao informado";
   document.querySelector("#publicExpiration").textContent = formatDate(item.expiration);
   document.querySelector("#publicStatus").textContent = status.label;
   document.querySelector("#publicOwner").textContent = item.owner || "Nao informado";
@@ -298,6 +340,10 @@ function getExpirationStatus(dateValue) {
 
   if (diffDays < 0) {
     return { kind: "expired", label: "Vencido" };
+  }
+
+  if (diffDays === 0) {
+    return { kind: "warning", label: "Vence hoje" };
   }
 
   if (diffDays <= 30) {
@@ -336,7 +382,7 @@ function formatDate(dateValue) {
 
 function loadItems() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    return (JSON.parse(localStorage.getItem(STORAGE_KEY)) || []).map(normalizeLocalItem);
   } catch {
     return [];
   }
@@ -353,7 +399,8 @@ function isAllowedExpiration(dateValue) {
 function validateRecord(record) {
   const requiredFields = [
     ["TAG Borrifador", record.tag],
-    ["Setor / area", record.address],
+    ["Setor", record.address],
+    ["Area", record.area],
     ["Nome da solucao atual", record.solution],
     ["Data do preparo", record.preparation],
     ["Data de validade", record.expiration],
@@ -363,7 +410,7 @@ function validateRecord(record) {
   const missingField = requiredFields.find(([, value]) => !value);
   if (missingField) return `Preencha o campo ${missingField[0]}.`;
 
-  const textFields = [record.tag, record.address, record.owner, record.solution, record.prepCode];
+  const textFields = [record.tag, record.address, record.area, record.owner, record.solution, record.prepCode];
   if (textFields.some((value) => value && value.length > MAX_TEXT_LENGTH)) {
     return `Os campos de texto devem ter no maximo ${MAX_TEXT_LENGTH} caracteres.`;
   }
@@ -476,6 +523,7 @@ function toDatabaseItem(item, includeId = false) {
     validade: item.expiration,
     responsavel: item.owner || null,
     observacoes: JSON.stringify({
+      area: item.area || "",
       solution: item.solution || "",
       preparation: item.preparation || "",
       prepCode: item.prepCode || "",
@@ -493,11 +541,13 @@ function toDatabaseItem(item, includeId = false) {
 
 function fromDatabaseItem(row) {
   const details = parseDetails(row.observacoes);
+  const location = splitLegacyLocation(row.endereco, details.area);
 
   return {
     id: row.id,
     tag: row.tag,
-    address: row.endereco,
+    address: location.address,
+    area: location.area,
     expiration: row.validade,
     owner: row.responsavel || "",
     solution: details.solution,
@@ -526,18 +576,43 @@ function setFormEnabled(enabled) {
 
 function parseDetails(value) {
   if (!value) {
-    return { solution: "", preparation: "", prepCode: "", notes: "" };
+    return { area: "", solution: "", preparation: "", prepCode: "", notes: "" };
   }
 
   try {
     const parsed = JSON.parse(value);
     return {
+      area: parsed.area || "",
       solution: parsed.solution || "",
       preparation: parsed.preparation || "",
       prepCode: parsed.prepCode || "",
       notes: parsed.notes || "",
     };
   } catch {
-    return { solution: "", preparation: "", prepCode: "", notes: value };
+    return { area: "", solution: "", preparation: "", prepCode: "", notes: value };
   }
+}
+
+function splitLegacyLocation(address, area) {
+  const safeAddress = address || "";
+  const safeArea = area || "";
+
+  if (safeArea || !safeAddress.includes("/")) {
+    return { address: safeAddress, area: safeArea };
+  }
+
+  const [legacyAddress, ...legacyArea] = safeAddress.split("/");
+  return {
+    address: legacyAddress.trim(),
+    area: legacyArea.join("/").trim(),
+  };
+}
+
+function normalizeLocalItem(item) {
+  const location = splitLegacyLocation(item.address || "", item.area || "");
+  return {
+    ...item,
+    address: location.address,
+    area: location.area,
+  };
 }

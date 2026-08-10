@@ -11,6 +11,7 @@ async function renderReadOnlyView() {
   if (!item) {
     setText("#publicTag", "Registro nao encontrado");
     setText("#publicAddress", "Confira se o QR Code esta correto.");
+    setText("#publicArea", "-");
     setText("#publicExpiration", "-");
     setText("#publicStatus", "-");
     setText("#publicOwner", "-");
@@ -24,6 +25,7 @@ async function renderReadOnlyView() {
   const status = getExpirationStatus(item.expiration);
   setText("#publicTag", item.tag);
   setText("#publicAddress", item.address);
+  setText("#publicArea", item.area || "Nao informado");
   setText("#publicExpiration", formatDate(item.expiration));
   setText("#publicStatus", status.label);
   setText("#publicOwner", item.owner || "Nao informado");
@@ -60,11 +62,13 @@ async function supabaseRequest(endpoint) {
 
 function fromDatabaseItem(row) {
   const details = parseDetails(row.observacoes);
+  const location = splitLegacyLocation(row.endereco, details.area);
 
   return {
     id: row.id,
     tag: row.tag,
-    address: row.endereco,
+    address: location.address,
+    area: location.area,
     expiration: row.validade,
     owner: row.responsavel || "",
     solution: details.solution,
@@ -85,6 +89,10 @@ function getExpirationStatus(dateValue) {
     return { kind: "expired", label: "Vencido" };
   }
 
+  if (diffDays === 0) {
+    return { kind: "warning", label: "Vence hoje" };
+  }
+
   if (diffDays <= 30) {
     return { kind: "warning", label: `Vence em ${diffDays} dia${diffDays === 1 ? "" : "s"}` };
   }
@@ -103,18 +111,34 @@ function setText(selector, value) {
 
 function parseDetails(value) {
   if (!value) {
-    return { solution: "", preparation: "", prepCode: "", notes: "" };
+    return { area: "", solution: "", preparation: "", prepCode: "", notes: "" };
   }
 
   try {
     const parsed = JSON.parse(value);
     return {
+      area: parsed.area || "",
       solution: parsed.solution || "",
       preparation: parsed.preparation || "",
       prepCode: parsed.prepCode || "",
       notes: parsed.notes || "",
     };
   } catch {
-    return { solution: "", preparation: "", prepCode: "", notes: value };
+    return { area: "", solution: "", preparation: "", prepCode: "", notes: value };
   }
+}
+
+function splitLegacyLocation(address, area) {
+  const safeAddress = address || "";
+  const safeArea = area || "";
+
+  if (safeArea || !safeAddress.includes("/")) {
+    return { address: safeAddress, area: safeArea };
+  }
+
+  const [legacyAddress, ...legacyArea] = safeAddress.split("/");
+  return {
+    address: legacyAddress.trim(),
+    area: legacyArea.join("/").trim(),
+  };
 }
