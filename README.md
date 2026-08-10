@@ -4,7 +4,7 @@ Aplicacao web simples para cadastrar borrifadores, gerar QR Codes e abrir uma pa
 
 ## Como usar
 
-Abra `index.html` no navegador ou use o GitHub Pages, cadastre os vidros e use `Imprimir QR` no registro desejado.
+Abra `index.html` no navegador ou use o GitHub Pages, cadastre os frascos e use `Imprimir QR` no registro desejado.
 
 Os cadastros ficam salvos no Supabase. O navegador mantem uma copia local apenas como cache/backup caso a conexao falhe.
 

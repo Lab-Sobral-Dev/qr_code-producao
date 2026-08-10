@@ -134,7 +134,7 @@ function editItem(id) {
   preparationInput.value = item.preparation || "";
   prepCodeInput.value = item.prepCode || "";
   notesInput.value = item.notes || "";
-  formTitle.textContent = "Editar vidro";
+  formTitle.textContent = "Editar frasco";
   deleteButton.disabled = false;
   tagInput.focus();
 }
@@ -142,7 +142,7 @@ function editItem(id) {
 function resetForm() {
   form.reset();
   itemId.value = "";
-  formTitle.textContent = "Novo vidro";
+  formTitle.textContent = "Novo frasco";
   deleteButton.disabled = true;
 }
 
@@ -175,7 +175,7 @@ function renderItems() {
 
     const qrCode = node.querySelector(".qr-code");
     qrCode.src = getQrCodeUrl(publicUrl);
-    qrCode.alt = `QR Code para ${item.tag}`;
+    qrCode.alt = `QR Code do frasco ${item.tag}`;
 
     node.querySelector(".open-link").href = publicUrl;
     node.querySelector(".edit-button").addEventListener("click", () => editItem(item.id));
