@@ -25,6 +25,7 @@ const formTitle = document.querySelector("#formTitle");
 const deleteButton = document.querySelector("#deleteButton");
 const clearButton = document.querySelector("#clearButton");
 const newButton = document.querySelector("#newButton");
+const printAllButton = document.querySelector("#printAllButton");
 const searchInput = document.querySelector("#searchInput");
 const itemsGrid = document.querySelector("#itemsGrid");
 const emptyState = document.querySelector("#emptyState");
@@ -37,6 +38,7 @@ form.addEventListener("submit", handleSubmit);
 deleteButton.addEventListener("click", handleDelete);
 clearButton.addEventListener("click", resetForm);
 newButton.addEventListener("click", resetForm);
+printAllButton.addEventListener("click", printAllItems);
 searchInput.addEventListener("input", (event) => {
   state.filter = event.target.value.trim().toLowerCase();
   renderItems();
@@ -188,6 +190,11 @@ function printItem(id) {
 
   document.body.classList.add("print-selected");
   selectedCard.classList.add("print-target");
+  window.print();
+}
+
+function printAllItems() {
+  clearSelectedPrintItem();
   window.print();
 }
 
