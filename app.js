@@ -3,6 +3,7 @@ const DEFAULT_PUBLIC_BASE_URL = "https://lab-sobral-dev.github.io/qr_code-produc
 const SUPABASE_URL = "https://deierwldemkevanfxrwg.supabase.co";
 const SUPABASE_KEY = "sb_publishable_MjALJQJiaIt-fLg-YBLWPw_XLLcbm-5";
 const SUPABASE_TABLE = "alcool_registros";
+const MAX_EXPIRATION_DATE = "2100-12-31";
 
 const state = {
   items: loadItems(),
@@ -71,6 +72,11 @@ async function handleSubmit(event) {
     notes: notesInput.value.trim(),
     updatedAt: new Date().toISOString(),
   };
+
+  if (!isAllowedExpiration(record.expiration)) {
+    window.alert("A validade deve ser no maximo 31/12/2100.");
+    return;
+  }
 
   setFormEnabled(false);
 
@@ -166,7 +172,7 @@ function importBackup(event) {
         throw new Error("Formato de backup invalido.");
       }
 
-      const validItems = importedItems.filter(isValidItem);
+      const validItems = importedItems.filter((item) => isValidItem(item) && isAllowedExpiration(item.expiration));
       if (validItems.length === 0) {
         throw new Error("Nenhum cadastro valido foi encontrado no arquivo.");
       }
@@ -346,6 +352,10 @@ function isValidItem(item) {
       typeof item.address === "string" &&
       typeof item.expiration === "string"
   );
+}
+
+function isAllowedExpiration(dateValue) {
+  return Boolean(dateValue && dateValue <= MAX_EXPIRATION_DATE);
 }
 
 async function refreshItemsFromDatabase() {
