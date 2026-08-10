@@ -334,13 +334,22 @@ dd {
 }
 
 @media print {
+  @page {
+    margin: 10mm;
+  }
+
   body {
     background: #fff;
   }
 
   .topbar,
   .form-panel,
+  .panel-heading,
   .search,
+  .empty-state,
+  .status-pill,
+  .item-card h3,
+  .item-card dl,
   .card-actions,
   .back-link {
     display: none !important;
@@ -355,10 +364,43 @@ dd {
     display: block;
   }
 
+  .list-panel {
+    border: 0;
+    padding: 0;
+  }
+
+  .items-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 38mm);
+    gap: 8mm;
+    margin: 0;
+  }
+
+  .item-card,
+  .item-main {
+    display: block;
+  }
+
+  .item-card {
+    width: 38mm;
+    height: 38mm;
+    padding: 0;
+    border: 0;
+    background: #fff;
+  }
+
   .panel,
   .public-card,
   .item-card {
     box-shadow: none;
     break-inside: avoid;
+  }
+
+  .qr-code {
+    display: block;
+    width: 38mm;
+    height: 38mm;
+    border: 0;
+    border-radius: 0;
   }
 }
