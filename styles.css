@@ -243,6 +243,10 @@ textarea {
   background: #fff;
 }
 
+.print-label {
+  display: none;
+}
+
 dl {
   display: grid;
   gap: 10px;
@@ -390,7 +394,7 @@ dd {
 
   .item-card {
     width: 38mm;
-    height: 38mm;
+    min-height: 38mm;
     padding: 0;
     border: 0;
     background: #fff;
@@ -417,5 +421,25 @@ dd {
     height: 38mm;
     border: 0;
     border-radius: 0;
+  }
+
+  .print-all .item-card {
+    min-height: 47mm;
+  }
+
+  .print-all .print-label {
+    display: block;
+    width: 38mm;
+    margin: 2mm 0 0;
+    color: #000;
+    font-size: 8pt;
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .print-selected .print-label {
+    display: none;
   }
 }

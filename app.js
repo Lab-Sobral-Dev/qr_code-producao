@@ -163,6 +163,7 @@ function renderItems() {
     node.dataset.itemId = item.id;
     node.querySelector("h3").textContent = item.tag;
     node.querySelector(".address").textContent = item.address;
+    node.querySelector(".print-label").textContent = item.address;
     node.querySelector(".solution").textContent = item.solution || "Nao informado";
     node.querySelector(".expiration").textContent = formatDate(item.expiration);
     node.querySelector(".prep-code").textContent = item.prepCode || "Nao informado";
@@ -197,6 +198,7 @@ function printItem(id) {
 async function printAllItems() {
   clearSelectedPrintItem();
   state.restoreFilterAfterPrint = state.filter;
+  document.body.classList.add("print-all");
   state.filter = "";
   searchInput.value = "";
   renderItems();
@@ -206,6 +208,7 @@ async function printAllItems() {
 
 function handleAfterPrint() {
   clearSelectedPrintItem();
+  document.body.classList.remove("print-all");
 
   if (state.restoreFilterAfterPrint !== null) {
     state.filter = state.restoreFilterAfterPrint;
