@@ -305,7 +305,9 @@ function renderControlTable(items) {
 }
 
 function renderQrCards(items) {
-  itemsGrid.className = "items-grid";
+  if (!itemsGrid.classList.contains("detail-grid")) {
+    itemsGrid.className = "items-grid";
+  }
   emptyState.classList.toggle("hidden", items.length > 0);
   tableSection.classList.add("hidden");
 

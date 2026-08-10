@@ -257,7 +257,8 @@ textarea {
 }
 
 .detail-grid {
-  grid-template-columns: minmax(280px, 460px);
+  grid-template-columns: minmax(320px, 560px);
+  justify-content: center;
 }
 
 .table-section {
@@ -352,6 +353,8 @@ textarea {
 }
 
 .item-card {
+  display: grid;
+  gap: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 18px;
@@ -359,9 +362,19 @@ textarea {
   box-shadow: var(--shadow-sm);
 }
 
+.item-main {
+  align-items: flex-start;
+}
+
+.item-main > div {
+  min-width: 0;
+}
+
 .item-card h3 {
   margin: 8px 0 0;
-  font-size: 1.35rem;
+  font-size: 1.45rem;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .status-pill {
@@ -389,8 +402,9 @@ textarea {
 }
 
 .qr-code {
-  width: 118px;
-  height: 118px;
+  flex: 0 0 auto;
+  width: 132px;
+  height: 132px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
@@ -403,12 +417,16 @@ textarea {
 dl {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 14px;
-  margin: 16px 0;
+  gap: 10px;
+  margin: 0;
 }
 
 .item-card dl div {
   min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
 }
 
 dt {
@@ -420,7 +438,17 @@ dt {
 
 dd {
   margin: 3px 0 0;
+  color: var(--ink);
+  font-weight: 700;
+  line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.card-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 2px;
 }
 
 .empty-state {
@@ -507,9 +535,17 @@ dd {
     grid-template-columns: 1fr;
   }
 
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .item-main {
+    justify-items: start;
+  }
+
   .qr-code {
-    width: 120px;
-    height: 120px;
+    width: 148px;
+    height: 148px;
   }
 
   .details-grid {
