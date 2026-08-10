@@ -22,9 +22,6 @@ const formTitle = document.querySelector("#formTitle");
 const deleteButton = document.querySelector("#deleteButton");
 const clearButton = document.querySelector("#clearButton");
 const newButton = document.querySelector("#newButton");
-const exportButton = document.querySelector("#exportButton");
-const importButton = document.querySelector("#importButton");
-const importInput = document.querySelector("#importInput");
 const searchInput = document.querySelector("#searchInput");
 const itemsGrid = document.querySelector("#itemsGrid");
 const emptyState = document.querySelector("#emptyState");
@@ -36,9 +33,6 @@ form.addEventListener("submit", handleSubmit);
 deleteButton.addEventListener("click", handleDelete);
 clearButton.addEventListener("click", resetForm);
 newButton.addEventListener("click", resetForm);
-exportButton.addEventListener("click", exportBackup);
-importButton.addEventListener("click", () => importInput.click());
-importInput.addEventListener("change", importBackup);
 searchInput.addEventListener("input", (event) => {
   state.filter = event.target.value.trim().toLowerCase();
   renderItems();
@@ -136,69 +130,6 @@ function resetForm() {
   itemId.value = "";
   formTitle.textContent = "Novo vidro";
   deleteButton.disabled = true;
-}
-
-function exportBackup() {
-  if (state.items.length === 0) {
-    window.alert("Nao ha cadastros para exportar.");
-    return;
-  }
-
-  const backup = {
-    app: "controle-alcool-70",
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    items: state.items,
-  };
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `backup-alcool-70-${new Date().toISOString().slice(0, 10)}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-function importBackup(event) {
-  const [file] = event.target.files;
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.addEventListener("load", async () => {
-    try {
-      const parsed = JSON.parse(reader.result);
-      const importedItems = Array.isArray(parsed) ? parsed : parsed.items;
-
-      if (!Array.isArray(importedItems)) {
-        throw new Error("Formato de backup invalido.");
-      }
-
-      const validItems = importedItems.filter((item) => isValidItem(item) && isAllowedExpiration(item.expiration));
-      if (validItems.length === 0) {
-        throw new Error("Nenhum cadastro valido foi encontrado no arquivo.");
-      }
-
-      const shouldImport = window.confirm(
-        `Importar ${validItems.length} cadastro(s) para o banco de dados?`
-      );
-      if (!shouldImport) return;
-
-      for (const item of validItems) {
-        const savedItem = await saveItemToDatabase(item);
-        upsertLocalItem(savedItem);
-      }
-
-      saveItems();
-      resetForm();
-      renderItems();
-      window.alert("Backup importado com sucesso.");
-    } catch (error) {
-      window.alert(error.message || "Nao foi possivel importar o backup.");
-    } finally {
-      importInput.value = "";
-    }
-  });
-  reader.readAsText(file);
 }
 
 function renderItems() {
@@ -343,16 +274,6 @@ function loadItems() {
 
 function saveItems() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
-}
-
-function isValidItem(item) {
-  return Boolean(
-    item &&
-      typeof item.id === "string" &&
-      typeof item.tag === "string" &&
-      typeof item.address === "string" &&
-      typeof item.expiration === "string"
-  );
 }
 
 function isAllowedExpiration(dateValue) {
