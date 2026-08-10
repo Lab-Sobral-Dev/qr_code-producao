@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Consulta de Alcool 70%</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell view-only-shell">
+      <section class="public-view" aria-live="polite">
+        <div class="public-card">
+          <p class="eyebrow">Verificacao do vidro</p>
+          <h2 id="publicTag">Carregando...</h2>
+          <dl class="details-grid">
+            <div>
+              <dt>Endereco</dt>
+              <dd id="publicAddress">-</dd>
+            </div>
+            <div>
+              <dt>Validade</dt>
+              <dd id="publicExpiration">-</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd id="publicStatus">-</dd>
+            </div>
+            <div>
+              <dt>Responsavel</dt>
+              <dd id="publicOwner">-</dd>
+            </div>
+          </dl>
+          <p class="notes" id="publicNotes"></p>
+        </div>
+      </section>
+    </main>
+
+    <script src="consulta.js"></script>
+  </body>
+</html>

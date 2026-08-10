@@ -279,6 +279,12 @@ dd {
   margin: 0 auto;
 }
 
+.view-only-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
 .public-card {
   padding: 26px;
 }

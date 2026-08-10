@@ -236,6 +236,7 @@ function getPublicUrl(id) {
   const item = state.items.find((record) => record.id === id);
   const baseUrl = window.location.protocol === "file:" ? DEFAULT_PUBLIC_BASE_URL : window.location.href;
   const url = new URL(baseUrl);
+  url.pathname = `${url.pathname.replace(/\/[^/]*$/, "/")}consulta.html`;
   url.search = "";
 
   if (!item) {
