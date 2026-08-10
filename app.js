@@ -1,5 +1,8 @@
 const STORAGE_KEY = "alcool70-registros";
 const DEFAULT_PUBLIC_BASE_URL = "https://lab-sobral-dev.github.io/qr_code-producao/";
+const SUPABASE_URL = "https://deierwldemkevanfxrwg.supabase.co";
+const SUPABASE_KEY = "sb_publishable_MjALJQJiaIt-fLg-YBLWPw_XLLcbm-5";
+const SUPABASE_TABLE = "alcool_registros";
 
 const state = {
   items: loadItems(),
@@ -42,24 +45,25 @@ window.addEventListener("afterprint", clearSelectedPrintItem);
 
 render();
 
-function render() {
+async function render() {
   const publicId = new URLSearchParams(window.location.search).get("id");
 
   if (publicId) {
-    renderPublicView();
+    await renderPublicView();
     return;
   }
 
   dashboard.classList.remove("hidden");
   publicView.classList.add("hidden");
   renderItems();
+  await refreshItemsFromDatabase();
 }
 
-function handleSubmit(event) {
+async function handleSubmit(event) {
   event.preventDefault();
 
   const record = {
-    id: itemId.value || crypto.randomUUID(),
+    id: itemId.value,
     tag: tagInput.value.trim(),
     address: addressInput.value.trim(),
     expiration: expirationInput.value,
@@ -68,29 +72,41 @@ function handleSubmit(event) {
     updatedAt: new Date().toISOString(),
   };
 
-  const currentIndex = state.items.findIndex((item) => item.id === record.id);
-  if (currentIndex >= 0) {
-    state.items[currentIndex] = record;
-  } else {
-    state.items.unshift(record);
-  }
+  setFormEnabled(false);
 
-  saveItems();
-  resetForm();
-  renderItems();
+  try {
+    const savedRecord = await saveItemToDatabase(record);
+    upsertLocalItem(savedRecord);
+    saveItems();
+    resetForm();
+    renderItems();
+  } catch (error) {
+    window.alert(`Nao foi possivel salvar no banco de dados. ${error.message}`);
+  } finally {
+    setFormEnabled(true);
+  }
 }
 
-function handleDelete() {
+async function handleDelete() {
   if (!itemId.value) return;
 
   const current = state.items.find((item) => item.id === itemId.value);
   const confirmed = window.confirm(`Excluir o registro ${current?.tag || ""}?`);
   if (!confirmed) return;
 
-  state.items = state.items.filter((item) => item.id !== itemId.value);
-  saveItems();
-  resetForm();
-  renderItems();
+  setFormEnabled(false);
+
+  try {
+    await deleteItemFromDatabase(itemId.value);
+    state.items = state.items.filter((item) => item.id !== itemId.value);
+    saveItems();
+    resetForm();
+    renderItems();
+  } catch (error) {
+    window.alert(`Nao foi possivel excluir no banco de dados. ${error.message}`);
+  } finally {
+    setFormEnabled(true);
+  }
 }
 
 function editItem(id) {
@@ -141,7 +157,7 @@ function importBackup(event) {
   if (!file) return;
 
   const reader = new FileReader();
-  reader.addEventListener("load", () => {
+  reader.addEventListener("load", async () => {
     try {
       const parsed = JSON.parse(reader.result);
       const importedItems = Array.isArray(parsed) ? parsed : parsed.items;
@@ -155,12 +171,16 @@ function importBackup(event) {
         throw new Error("Nenhum cadastro valido foi encontrado no arquivo.");
       }
 
-      const shouldReplace = window.confirm(
-        `Importar ${validItems.length} cadastro(s)? Clique em OK para substituir a lista atual.`
+      const shouldImport = window.confirm(
+        `Importar ${validItems.length} cadastro(s) para o banco de dados?`
       );
-      if (!shouldReplace) return;
+      if (!shouldImport) return;
 
-      state.items = validItems;
+      for (const item of validItems) {
+        const savedItem = await saveItemToDatabase(item);
+        upsertLocalItem(savedItem);
+      }
+
       saveItems();
       resetForm();
       renderItems();
@@ -227,9 +247,12 @@ function clearSelectedPrintItem() {
   });
 }
 
-function renderPublicView() {
+async function renderPublicView() {
   const params = new URLSearchParams(window.location.search);
-  const item = getItemFromParams(params) || state.items.find((record) => record.id === params.get("id"));
+  const item =
+    getItemFromParams(params) ||
+    state.items.find((record) => record.id === params.get("id")) ||
+    (await getItemFromDatabase(params.get("id")));
 
   dashboard.classList.add("hidden");
   publicView.classList.remove("hidden");
@@ -323,6 +346,141 @@ function isValidItem(item) {
       typeof item.address === "string" &&
       typeof item.expiration === "string"
   );
+}
+
+async function refreshItemsFromDatabase() {
+  try {
+    const rows = await supabaseRequest(`${SUPABASE_TABLE}?select=*&order=criado_em.desc`);
+    state.items = rows.map(fromDatabaseItem);
+    saveItems();
+    renderItems();
+  } catch (error) {
+    console.error(error);
+    renderItems();
+  }
+}
+
+async function saveItemToDatabase(item) {
+  const payload = toDatabaseItem(item);
+  const isUpdate = Boolean(item.id);
+  const endpoint = isUpdate ? `${SUPABASE_TABLE}?id=eq.${encodeURIComponent(item.id)}&select=*` : `${SUPABASE_TABLE}?select=*`;
+  const method = isUpdate ? "PATCH" : "POST";
+  const rows = await supabaseRequest(endpoint, {
+    method,
+    body: JSON.stringify(payload),
+    headers: {
+      Prefer: "return=representation",
+    },
+  });
+
+  if (!rows[0] && isUpdate) {
+    return createItemInDatabase(item);
+  }
+
+  if (!rows[0]) {
+    throw new Error("O banco nao retornou o cadastro salvo.");
+  }
+
+  return fromDatabaseItem(rows[0]);
+}
+
+async function createItemInDatabase(item) {
+  const rows = await supabaseRequest(`${SUPABASE_TABLE}?select=*`, {
+    method: "POST",
+    body: JSON.stringify(toDatabaseItem(item, true)),
+    headers: {
+      Prefer: "return=representation",
+    },
+  });
+
+  if (!rows[0]) {
+    throw new Error("O banco nao retornou o cadastro criado.");
+  }
+
+  return fromDatabaseItem(rows[0]);
+}
+
+async function deleteItemFromDatabase(id) {
+  await supabaseRequest(`${SUPABASE_TABLE}?id=eq.${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+async function getItemFromDatabase(id) {
+  if (!id) return null;
+
+  try {
+    const rows = await supabaseRequest(`${SUPABASE_TABLE}?id=eq.${encodeURIComponent(id)}&select=*&limit=1`);
+    return rows[0] ? fromDatabaseItem(rows[0]) : null;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+async function supabaseRequest(endpoint, options = {}) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+    ...options,
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(details || `Erro HTTP ${response.status}`);
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+function toDatabaseItem(item, includeId = false) {
+  const payload = {
+    tag: item.tag,
+    endereco: item.address,
+    validade: item.expiration,
+    responsavel: item.owner || null,
+    observacoes: item.notes || null,
+    atualizado_em: new Date().toISOString(),
+  };
+
+  if (includeId && item.id) {
+    payload.id = item.id;
+  }
+
+  return payload;
+}
+
+function fromDatabaseItem(row) {
+  return {
+    id: row.id,
+    tag: row.tag,
+    address: row.endereco,
+    expiration: row.validade,
+    owner: row.responsavel || "",
+    notes: row.observacoes || "",
+    updatedAt: row.atualizado_em || row.criado_em || "",
+  };
+}
+
+function upsertLocalItem(item) {
+  const currentIndex = state.items.findIndex((record) => record.id === item.id);
+  if (currentIndex >= 0) {
+    state.items[currentIndex] = item;
+  } else {
+    state.items.unshift(item);
+  }
+}
+
+function setFormEnabled(enabled) {
+  form.querySelectorAll("button, input, textarea").forEach((field) => {
+    field.disabled = !enabled;
+  });
+  deleteButton.disabled = enabled ? !itemId.value : true;
 }
 
 function getItemFromParams(params) {

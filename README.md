@@ -4,11 +4,11 @@ Aplicacao web simples para cadastrar vidros de alcool 70%, gerar QR Codes e abri
 
 ## Como usar
 
-Abra `index.html` no navegador, cadastre os vidros e use o botao `Imprimir` para gerar as etiquetas com QR Code.
+Abra `index.html` no navegador ou use o GitHub Pages, cadastre os vidros e use `Imprimir QR` no registro desejado.
 
-Os cadastros ficam salvos no navegador em `localStorage`. O QR Code leva tag, endereco, validade, responsavel e observacoes no proprio link, permitindo a consulta em outro celular quando a pagina estiver publicada.
+Os cadastros ficam salvos no Supabase. O navegador mantem uma copia local apenas como cache/backup caso a conexao falhe.
 
-Para uso em varios computadores com uma base unica de dados editavel por todos, sera necessario evoluir para uma versao com backend e banco de dados.
+O QR Code leva tag, endereco, validade, responsavel e observacoes no proprio link, permitindo a consulta em outro celular quando a pagina estiver publicada.
 
 ## Publicacao
 
