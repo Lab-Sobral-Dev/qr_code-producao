@@ -20,15 +20,27 @@
 
       <section class="public-view hidden" id="publicView" aria-live="polite">
         <div class="public-card">
-          <p class="eyebrow">Etiqueta do vidro</p>
+          <p class="eyebrow">Verificacao do borrifador</p>
           <h2 id="publicTag">-</h2>
           <dl class="details-grid">
             <div>
-              <dt>Endereco</dt>
+              <dt>Setor / area</dt>
               <dd id="publicAddress">-</dd>
             </div>
             <div>
-              <dt>Validade</dt>
+              <dt>Responsavel</dt>
+              <dd id="publicOwner">-</dd>
+            </div>
+            <div>
+              <dt>Nome da solucao atual</dt>
+              <dd id="publicSolution">-</dd>
+            </div>
+            <div>
+              <dt>Data do preparo</dt>
+              <dd id="publicPreparation">-</dd>
+            </div>
+            <div>
+              <dt>Data de validade</dt>
               <dd id="publicExpiration">-</dd>
             </div>
             <div>
@@ -36,8 +48,8 @@
               <dd id="publicStatus">-</dd>
             </div>
             <div>
-              <dt>Responsavel</dt>
-              <dd id="publicOwner">-</dd>
+              <dt>Codigo do preparo (logbook)</dt>
+              <dd id="publicPrepCode">-</dd>
             </div>
           </dl>
           <p class="notes" id="publicNotes"></p>
@@ -56,23 +68,38 @@
           </div>
 
           <label>
-            Tag do alcool
-            <input id="tagInput" name="tag" type="text" placeholder="ALC-001" required />
+            TAG Borrifador
+            <input id="tagInput" name="tag" type="text" placeholder="BOR-001" required />
           </label>
 
           <label>
-            Endereco / setor
+            Setor / area
             <input id="addressInput" name="address" type="text" placeholder="Laboratorio - Bancada 2" required />
-          </label>
-
-          <label>
-            Validade
-            <input id="expirationInput" name="expiration" type="date" min="2026-01-01" max="2100-12-31" required />
           </label>
 
           <label>
             Responsavel
             <input id="ownerInput" name="owner" type="text" placeholder="Nome do responsavel" />
+          </label>
+
+          <label>
+            Nome da solucao atual
+            <input id="solutionInput" name="solution" type="text" placeholder="Alcool 70%" required />
+          </label>
+
+          <label>
+            Data do preparo
+            <input id="preparationInput" name="preparation" type="date" min="2026-01-01" max="2100-12-31" required />
+          </label>
+
+          <label>
+            Data de validade
+            <input id="expirationInput" name="expiration" type="date" min="2026-01-01" max="2100-12-31" required />
+          </label>
+
+          <label>
+            Codigo do preparo (logbook)
+            <input id="prepCodeInput" name="prepCode" type="text" placeholder="LOG-2026-001" required />
           </label>
 
           <label>
@@ -92,7 +119,7 @@
               <p class="eyebrow">Registros</p>
               <h2>Vidros cadastrados</h2>
             </div>
-            <input class="search" id="searchInput" type="search" placeholder="Buscar tag ou endereco" />
+            <input class="search" id="searchInput" type="search" placeholder="Buscar TAG, setor ou codigo" />
           </div>
 
           <div class="empty-state hidden" id="emptyState">
@@ -115,12 +142,20 @@
         </div>
         <dl>
           <div>
-            <dt>Endereco</dt>
+            <dt>Setor / area</dt>
             <dd class="address"></dd>
           </div>
           <div>
-            <dt>Validade</dt>
+            <dt>Solucao atual</dt>
+            <dd class="solution"></dd>
+          </div>
+          <div>
+            <dt>Data de validade</dt>
             <dd class="expiration"></dd>
+          </div>
+          <div>
+            <dt>Codigo do preparo</dt>
+            <dd class="prep-code"></dd>
           </div>
         </dl>
         <div class="card-actions">

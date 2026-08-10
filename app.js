@@ -17,6 +17,9 @@ const tagInput = document.querySelector("#tagInput");
 const addressInput = document.querySelector("#addressInput");
 const expirationInput = document.querySelector("#expirationInput");
 const ownerInput = document.querySelector("#ownerInput");
+const solutionInput = document.querySelector("#solutionInput");
+const preparationInput = document.querySelector("#preparationInput");
+const prepCodeInput = document.querySelector("#prepCodeInput");
 const notesInput = document.querySelector("#notesInput");
 const formTitle = document.querySelector("#formTitle");
 const deleteButton = document.querySelector("#deleteButton");
@@ -66,12 +69,15 @@ async function handleSubmit(event) {
     address: addressInput.value.trim(),
     expiration: expirationInput.value,
     owner: ownerInput.value.trim(),
+    solution: solutionInput.value.trim(),
+    preparation: preparationInput.value,
+    prepCode: prepCodeInput.value.trim(),
     notes: notesInput.value.trim(),
     updatedAt: new Date().toISOString(),
   };
 
-  if (!isAllowedExpiration(record.expiration)) {
-    window.alert("A validade deve estar entre 01/01/2026 e 31/12/2100.");
+  if (!isAllowedExpiration(record.expiration) || !isAllowedExpiration(record.preparation)) {
+    window.alert("As datas devem estar entre 01/01/2026 e 31/12/2100.");
     return;
   }
 
@@ -121,6 +127,9 @@ function editItem(id) {
   addressInput.value = item.address;
   expirationInput.value = item.expiration;
   ownerInput.value = item.owner || "";
+  solutionInput.value = item.solution || "";
+  preparationInput.value = item.preparation || "";
+  prepCodeInput.value = item.prepCode || "";
   notesInput.value = item.notes || "";
   formTitle.textContent = "Editar vidro";
   deleteButton.disabled = false;
@@ -136,7 +145,7 @@ function resetForm() {
 
 function renderItems() {
   const filteredItems = state.items.filter((item) => {
-    const searchable = `${item.tag} ${item.address} ${item.owner || ""}`.toLowerCase();
+    const searchable = `${item.tag} ${item.address} ${item.owner || ""} ${item.solution || ""} ${item.prepCode || ""}`.toLowerCase();
     return searchable.includes(state.filter);
   });
 
@@ -151,7 +160,9 @@ function renderItems() {
     node.dataset.itemId = item.id;
     node.querySelector("h3").textContent = item.tag;
     node.querySelector(".address").textContent = item.address;
+    node.querySelector(".solution").textContent = item.solution || "Nao informado";
     node.querySelector(".expiration").textContent = formatDate(item.expiration);
+    node.querySelector(".prep-code").textContent = item.prepCode || "Nao informado";
 
     const pill = node.querySelector(".status-pill");
     pill.textContent = status.label;
@@ -190,9 +201,9 @@ function clearSelectedPrintItem() {
 async function renderPublicView() {
   const params = new URLSearchParams(window.location.search);
   const item =
-    getItemFromParams(params) ||
     state.items.find((record) => record.id === params.get("id")) ||
-    (await getItemFromDatabase(params.get("id")));
+    (await getItemFromDatabase(params.get("id"))) ||
+    getItemFromParams(params);
 
   dashboard.classList.add("hidden");
   topbar.classList.add("hidden");
@@ -204,6 +215,9 @@ async function renderPublicView() {
     document.querySelector("#publicExpiration").textContent = "-";
     document.querySelector("#publicStatus").textContent = "-";
     document.querySelector("#publicOwner").textContent = "-";
+    document.querySelector("#publicSolution").textContent = "-";
+    document.querySelector("#publicPreparation").textContent = "-";
+    document.querySelector("#publicPrepCode").textContent = "-";
     document.querySelector("#publicNotes").textContent = "";
     return;
   }
@@ -214,6 +228,9 @@ async function renderPublicView() {
   document.querySelector("#publicExpiration").textContent = formatDate(item.expiration);
   document.querySelector("#publicStatus").textContent = status.label;
   document.querySelector("#publicOwner").textContent = item.owner || "Nao informado";
+  document.querySelector("#publicSolution").textContent = item.solution || "Nao informado";
+  document.querySelector("#publicPreparation").textContent = formatDate(item.preparation);
+  document.querySelector("#publicPrepCode").textContent = item.prepCode || "Nao informado";
   document.querySelector("#publicNotes").textContent = item.notes || "";
 }
 
@@ -248,12 +265,6 @@ function getPublicUrl(id) {
   }
 
   url.searchParams.set("id", item.id);
-  url.searchParams.set("tag", item.tag);
-  url.searchParams.set("endereco", item.address);
-  url.searchParams.set("validade", item.expiration);
-
-  if (item.owner) url.searchParams.set("responsavel", item.owner);
-  if (item.notes) url.searchParams.set("obs", item.notes);
 
   return url.toString();
 }
@@ -380,7 +391,12 @@ function toDatabaseItem(item, includeId = false) {
     endereco: item.address,
     validade: item.expiration,
     responsavel: item.owner || null,
-    observacoes: item.notes || null,
+    observacoes: JSON.stringify({
+      solution: item.solution || "",
+      preparation: item.preparation || "",
+      prepCode: item.prepCode || "",
+      notes: item.notes || "",
+    }),
     atualizado_em: new Date().toISOString(),
   };
 
@@ -392,13 +408,18 @@ function toDatabaseItem(item, includeId = false) {
 }
 
 function fromDatabaseItem(row) {
+  const details = parseDetails(row.observacoes);
+
   return {
     id: row.id,
     tag: row.tag,
     address: row.endereco,
     expiration: row.validade,
     owner: row.responsavel || "",
-    notes: row.observacoes || "",
+    solution: details.solution,
+    preparation: details.preparation,
+    prepCode: details.prepCode,
+    notes: details.notes,
     updatedAt: row.atualizado_em || row.criado_em || "",
   };
 }
@@ -432,6 +453,27 @@ function getItemFromParams(params) {
     address,
     expiration,
     owner: params.get("responsavel") || "",
+    solution: params.get("solucao") || "",
+    preparation: params.get("preparo") || "",
+    prepCode: params.get("codigo") || "",
     notes: params.get("obs") || "",
   };
+}
+
+function parseDetails(value) {
+  if (!value) {
+    return { solution: "", preparation: "", prepCode: "", notes: "" };
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return {
+      solution: parsed.solution || "",
+      preparation: parsed.preparation || "",
+      prepCode: parsed.prepCode || "",
+      notes: parsed.notes || "",
+    };
+  } catch {
+    return { solution: "", preparation: "", prepCode: "", notes: value };
+  }
 }

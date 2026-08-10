@@ -6,7 +6,7 @@ renderReadOnlyView();
 
 async function renderReadOnlyView() {
   const params = new URLSearchParams(window.location.search);
-  const item = getItemFromParams(params) || (await getItemFromDatabase(params.get("id")));
+  const item = (await getItemFromDatabase(params.get("id"))) || getItemFromParams(params);
 
   if (!item) {
     setText("#publicTag", "Registro nao encontrado");
@@ -14,6 +14,9 @@ async function renderReadOnlyView() {
     setText("#publicExpiration", "-");
     setText("#publicStatus", "-");
     setText("#publicOwner", "-");
+    setText("#publicSolution", "-");
+    setText("#publicPreparation", "-");
+    setText("#publicPrepCode", "-");
     setText("#publicNotes", "");
     return;
   }
@@ -24,6 +27,9 @@ async function renderReadOnlyView() {
   setText("#publicExpiration", formatDate(item.expiration));
   setText("#publicStatus", status.label);
   setText("#publicOwner", item.owner || "Nao informado");
+  setText("#publicSolution", item.solution || "Nao informado");
+  setText("#publicPreparation", formatDate(item.preparation));
+  setText("#publicPrepCode", item.prepCode || "Nao informado");
   setText("#publicNotes", item.notes || "");
 }
 
@@ -65,18 +71,26 @@ function getItemFromParams(params) {
     address,
     expiration,
     owner: params.get("responsavel") || "",
+    solution: params.get("solucao") || "",
+    preparation: params.get("preparo") || "",
+    prepCode: params.get("codigo") || "",
     notes: params.get("obs") || "",
   };
 }
 
 function fromDatabaseItem(row) {
+  const details = parseDetails(row.observacoes);
+
   return {
     id: row.id,
     tag: row.tag,
     address: row.endereco,
     expiration: row.validade,
     owner: row.responsavel || "",
-    notes: row.observacoes || "",
+    solution: details.solution,
+    preparation: details.preparation,
+    prepCode: details.prepCode,
+    notes: details.notes,
   };
 }
 
@@ -105,4 +119,22 @@ function formatDate(dateValue) {
 
 function setText(selector, value) {
   document.querySelector(selector).textContent = value;
+}
+
+function parseDetails(value) {
+  if (!value) {
+    return { solution: "", preparation: "", prepCode: "", notes: "" };
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return {
+      solution: parsed.solution || "",
+      preparation: parsed.preparation || "",
+      prepCode: parsed.prepCode || "",
+      notes: parsed.notes || "",
+    };
+  } catch {
+    return { solution: "", preparation: "", prepCode: "", notes: value };
+  }
 }
