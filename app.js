@@ -26,6 +26,7 @@ const searchInput = document.querySelector("#searchInput");
 const itemsGrid = document.querySelector("#itemsGrid");
 const emptyState = document.querySelector("#emptyState");
 const itemTemplate = document.querySelector("#itemTemplate");
+const topbar = document.querySelector("#topbar");
 const dashboard = document.querySelector("#dashboard");
 const publicView = document.querySelector("#publicView");
 
@@ -49,6 +50,7 @@ async function render() {
     return;
   }
 
+  topbar.classList.remove("hidden");
   dashboard.classList.remove("hidden");
   publicView.classList.add("hidden");
   renderItems();
@@ -193,6 +195,7 @@ async function renderPublicView() {
     (await getItemFromDatabase(params.get("id")));
 
   dashboard.classList.add("hidden");
+  topbar.classList.add("hidden");
   publicView.classList.remove("hidden");
 
   if (!item) {
