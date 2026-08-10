@@ -5,6 +5,8 @@ const SUPABASE_KEY = "sb_publishable_MjALJQJiaIt-fLg-YBLWPw_XLLcbm-5";
 const SUPABASE_TABLE = "alcool_registros";
 const MIN_EXPIRATION_DATE = "2026-01-01";
 const MAX_EXPIRATION_DATE = "2100-12-31";
+const MAX_TEXT_LENGTH = 120;
+const MAX_NOTES_LENGTH = 500;
 
 const state = {
   items: loadItems(),
@@ -79,6 +81,12 @@ async function handleSubmit(event) {
     updatedAt: new Date().toISOString(),
   };
 
+  const validationError = validateRecord(record);
+  if (validationError) {
+    window.alert(validationError);
+    return;
+  }
+
   if (!isAllowedExpiration(record.expiration) || !isAllowedExpiration(record.preparation)) {
     window.alert("As datas devem estar entre 01/01/2026 e 31/12/2100.");
     return;
@@ -103,8 +111,11 @@ async function handleDelete() {
   if (!itemId.value) return;
 
   const current = state.items.find((item) => item.id === itemId.value);
-  const confirmed = window.confirm(`Excluir o registro ${current?.tag || ""}?`);
-  if (!confirmed) return;
+  const typedTag = window.prompt(`Para excluir, digite a TAG exatamente como cadastrada: ${current?.tag || ""}`);
+  if (!typedTag || typedTag !== current?.tag) {
+    window.alert("Exclusao cancelada. A TAG digitada nao confere.");
+    return;
+  }
 
   setFormEnabled(false);
 
@@ -246,9 +257,8 @@ function waitForQrCodes(timeoutMs) {
 async function renderPublicView() {
   const params = new URLSearchParams(window.location.search);
   const item =
-    state.items.find((record) => record.id === params.get("id")) ||
     (await getItemFromDatabase(params.get("id"))) ||
-    getItemFromParams(params);
+    state.items.find((record) => record.id === params.get("id"));
 
   dashboard.classList.add("hidden");
   topbar.classList.add("hidden");
@@ -338,6 +348,35 @@ function saveItems() {
 
 function isAllowedExpiration(dateValue) {
   return Boolean(dateValue && dateValue >= MIN_EXPIRATION_DATE && dateValue <= MAX_EXPIRATION_DATE);
+}
+
+function validateRecord(record) {
+  const requiredFields = [
+    ["TAG Borrifador", record.tag],
+    ["Setor / area", record.address],
+    ["Nome da solucao atual", record.solution],
+    ["Data do preparo", record.preparation],
+    ["Data de validade", record.expiration],
+    ["Codigo do preparo", record.prepCode],
+  ];
+
+  const missingField = requiredFields.find(([, value]) => !value);
+  if (missingField) return `Preencha o campo ${missingField[0]}.`;
+
+  const textFields = [record.tag, record.address, record.owner, record.solution, record.prepCode];
+  if (textFields.some((value) => value && value.length > MAX_TEXT_LENGTH)) {
+    return `Os campos de texto devem ter no maximo ${MAX_TEXT_LENGTH} caracteres.`;
+  }
+
+  if (record.notes && record.notes.length > MAX_NOTES_LENGTH) {
+    return `As observacoes devem ter no maximo ${MAX_NOTES_LENGTH} caracteres.`;
+  }
+
+  if (record.preparation > record.expiration) {
+    return "A data do preparo nao pode ser posterior a data de validade.";
+  }
+
+  return "";
 }
 
 async function refreshItemsFromDatabase() {
@@ -483,26 +522,6 @@ function setFormEnabled(enabled) {
     field.disabled = !enabled;
   });
   deleteButton.disabled = enabled ? !itemId.value : true;
-}
-
-function getItemFromParams(params) {
-  const tag = params.get("tag");
-  const address = params.get("endereco");
-  const expiration = params.get("validade");
-
-  if (!tag || !address || !expiration) return null;
-
-  return {
-    id: params.get("id") || "",
-    tag,
-    address,
-    expiration,
-    owner: params.get("responsavel") || "",
-    solution: params.get("solucao") || "",
-    preparation: params.get("preparo") || "",
-    prepCode: params.get("codigo") || "",
-    notes: params.get("obs") || "",
-  };
 }
 
 function parseDetails(value) {

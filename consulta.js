@@ -6,7 +6,7 @@ renderReadOnlyView();
 
 async function renderReadOnlyView() {
   const params = new URLSearchParams(window.location.search);
-  const item = (await getItemFromDatabase(params.get("id"))) || getItemFromParams(params);
+  const item = await getItemFromDatabase(params.get("id"));
 
   if (!item) {
     setText("#publicTag", "Registro nao encontrado");
@@ -56,26 +56,6 @@ async function supabaseRequest(endpoint) {
 
   if (!response.ok) return [];
   return response.json();
-}
-
-function getItemFromParams(params) {
-  const tag = params.get("tag");
-  const address = params.get("endereco");
-  const expiration = params.get("validade");
-
-  if (!tag || !address || !expiration) return null;
-
-  return {
-    id: params.get("id") || "",
-    tag,
-    address,
-    expiration,
-    owner: params.get("responsavel") || "",
-    solution: params.get("solucao") || "",
-    preparation: params.get("preparo") || "",
-    prepCode: params.get("codigo") || "",
-    notes: params.get("obs") || "",
-  };
 }
 
 function fromDatabaseItem(row) {
