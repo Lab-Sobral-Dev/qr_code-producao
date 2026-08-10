@@ -134,7 +134,7 @@ function editItem(id) {
   preparationInput.value = item.preparation || "";
   prepCodeInput.value = item.prepCode || "";
   notesInput.value = item.notes || "";
-  formTitle.textContent = "Editar frasco";
+  formTitle.textContent = "EDITAR FRASCO";
   deleteButton.disabled = false;
   tagInput.focus();
 }
@@ -142,7 +142,7 @@ function editItem(id) {
 function resetForm() {
   form.reset();
   itemId.value = "";
-  formTitle.textContent = "Novo frasco";
+  formTitle.textContent = "NOVO FRASCO";
   deleteButton.disabled = true;
 }
 
