@@ -199,6 +199,51 @@ textarea {
   max-width: 280px;
 }
 
+.list-tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.sector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.sector-card {
+  display: grid;
+  gap: 8px;
+  min-height: 104px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.sector-card:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.sector-card strong {
+  font-size: 1.1rem;
+}
+
+.sector-card span {
+  color: var(--ink-light);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .items-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -233,7 +278,7 @@ textarea {
 
 .control-table {
   width: 100%;
-  min-width: 860px;
+  min-width: 1120px;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
@@ -256,6 +301,21 @@ textarea {
 
 .control-table tr:last-child td {
   border-bottom: 0;
+}
+
+.product-row {
+  cursor: pointer;
+}
+
+.product-row:hover td {
+  background: var(--orange-50);
+}
+
+.recipient-cell {
+  color: var(--primary-dark);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .table-status {

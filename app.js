@@ -12,6 +12,10 @@ const state = {
   items: loadItems(),
   filter: "",
   restoreFilterAfterPrint: null,
+  view: "sectors",
+  selectedSector: "",
+  selectedItemId: "",
+  restoreViewAfterPrint: null,
 };
 
 const form = document.querySelector("#itemForm");
@@ -36,6 +40,9 @@ const controlTableBody = document.querySelector("#controlTableBody");
 const tableSection = document.querySelector("#tableSection");
 const emptyState = document.querySelector("#emptyState");
 const itemTemplate = document.querySelector("#itemTemplate");
+const listTitle = document.querySelector("#listTitle");
+const tableTitle = document.querySelector("#tableTitle");
+const backListButton = document.querySelector("#backListButton");
 const topbar = document.querySelector("#topbar");
 const dashboard = document.querySelector("#dashboard");
 const publicView = document.querySelector("#publicView");
@@ -45,6 +52,7 @@ deleteButton.addEventListener("click", handleDelete);
 clearButton.addEventListener("click", resetForm);
 newButton.addEventListener("click", resetForm);
 printAllButton.addEventListener("click", printAllItems);
+backListButton.addEventListener("click", navigateBack);
 searchInput.addEventListener("input", (event) => {
   state.filter = event.target.value.trim().toLowerCase();
   renderItems();
@@ -163,17 +171,145 @@ function resetForm() {
 }
 
 function renderItems() {
-  const filteredItems = state.items.filter((item) => {
-    const searchable = `${item.tag} ${item.address} ${item.area || ""} ${item.owner || ""} ${item.solution || ""} ${item.prepCode || ""}`.toLowerCase();
-    return searchable.includes(state.filter);
-  });
-
   itemsGrid.innerHTML = "";
-  emptyState.classList.toggle("hidden", filteredItems.length > 0);
-  tableSection.classList.toggle("hidden", filteredItems.length === 0);
-  renderControlTable(filteredItems);
+  controlTableBody.innerHTML = "";
 
-  filteredItems.forEach((item) => {
+  if (state.view === "products") {
+    renderProductsView();
+    return;
+  }
+
+  if (state.view === "detail") {
+    renderDetailView();
+    return;
+  }
+
+  if (state.view === "print-all") {
+    listTitle.textContent = "Todos os QR Codes";
+    backListButton.classList.add("hidden");
+    renderQrCards(getFilteredItems());
+    return;
+  }
+
+  renderSectorsView();
+}
+
+function renderSectorsView() {
+  const filteredItems = getFilteredItems();
+  const sectors = [...new Set(filteredItems.map((item) => item.address).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, "pt-BR")
+  );
+
+  listTitle.textContent = "Setores";
+  tableSection.classList.add("hidden");
+  backListButton.classList.add("hidden");
+  emptyState.classList.toggle("hidden", sectors.length > 0);
+
+  itemsGrid.className = "sector-grid";
+  sectors.forEach((sector) => {
+    const button = document.createElement("button");
+    button.className = "sector-card";
+    button.type = "button";
+    button.innerHTML = `<strong></strong>`;
+    button.querySelector("strong").textContent = sector;
+    button.addEventListener("click", () => {
+      state.view = "products";
+      state.selectedSector = sector;
+      renderItems();
+    });
+    itemsGrid.appendChild(button);
+  });
+}
+
+function renderProductsView() {
+  const items = getFilteredItems().filter((item) => item.address === state.selectedSector);
+
+  listTitle.textContent = state.selectedSector;
+  tableTitle.textContent = "Produtos cadastrados do setor";
+  tableSection.classList.toggle("hidden", items.length === 0);
+  backListButton.classList.remove("hidden");
+  emptyState.classList.toggle("hidden", items.length > 0);
+  itemsGrid.className = "items-grid hidden";
+  renderControlTable(items);
+}
+
+function renderDetailView() {
+  const item = state.items.find((record) => record.id === state.selectedItemId);
+
+  listTitle.textContent = item?.tag || "Recipiente";
+  tableSection.classList.add("hidden");
+  backListButton.classList.remove("hidden");
+  emptyState.classList.toggle("hidden", Boolean(item));
+  itemsGrid.className = "items-grid";
+
+  if (item) {
+    renderQrCards([item]);
+  }
+}
+
+function navigateBack() {
+  if (state.view === "detail") {
+    state.view = "products";
+    state.selectedItemId = "";
+    renderItems();
+    return;
+  }
+
+  state.view = "sectors";
+  state.selectedSector = "";
+  state.selectedItemId = "";
+  renderItems();
+}
+
+function renderControlTable(items) {
+  items.forEach((item) => {
+    const status = getExpirationStatus(item.expiration);
+    const row = document.createElement("tr");
+    row.className = "product-row";
+    row.innerHTML = `
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td><span class="table-status"></span></td>
+      <td></td>
+    `;
+
+    const cells = row.querySelectorAll("td");
+    cells[0].textContent = item.tag;
+    cells[0].classList.add("recipient-cell");
+    cells[0].title = "Abrir QR Code e detalhes";
+    cells[1].textContent = item.address;
+    cells[2].textContent = item.area || "-";
+    cells[3].textContent = item.owner || "Nao informado";
+    cells[4].textContent = item.solution || "Nao informado";
+    cells[5].textContent = formatDate(item.preparation);
+    cells[6].textContent = formatDate(item.expiration);
+    cells[8].textContent = item.prepCode || "Nao informado";
+
+    const statusElement = row.querySelector(".table-status");
+    statusElement.textContent = status.label;
+    statusElement.classList.add(status.kind);
+
+    row.addEventListener("click", () => {
+      state.view = "detail";
+      state.selectedItemId = item.id;
+      renderItems();
+    });
+
+    controlTableBody.appendChild(row);
+  });
+}
+
+function renderQrCards(items) {
+  itemsGrid.className = "items-grid";
+  emptyState.classList.toggle("hidden", items.length > 0);
+  tableSection.classList.add("hidden");
+
+  items.forEach((item) => {
     const node = itemTemplate.content.firstElementChild.cloneNode(true);
     const status = getExpirationStatus(item.expiration);
     const publicUrl = getPublicUrl(item.id);
@@ -204,35 +340,10 @@ function renderItems() {
   });
 }
 
-function renderControlTable(items) {
-  controlTableBody.innerHTML = "";
-
-  items.forEach((item) => {
-    const status = getExpirationStatus(item.expiration);
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td><span class="table-status"></span></td>
-      <td></td>
-    `;
-
-    const cells = row.querySelectorAll("td");
-    cells[0].textContent = item.tag;
-    cells[1].textContent = item.address;
-    cells[2].textContent = item.area || "-";
-    cells[3].textContent = item.solution || "Nao informado";
-    cells[4].textContent = formatDate(item.expiration);
-    cells[6].textContent = item.prepCode || "Nao informado";
-
-    const statusElement = row.querySelector(".table-status");
-    statusElement.textContent = status.label;
-    statusElement.classList.add(status.kind);
-
-    controlTableBody.appendChild(row);
+function getFilteredItems() {
+  return state.items.filter((item) => {
+    const searchable = `${item.tag} ${item.address} ${item.area || ""} ${item.owner || ""} ${item.solution || ""} ${item.prepCode || ""}`.toLowerCase();
+    return searchable.includes(state.filter);
   });
 }
 
@@ -249,8 +360,16 @@ function printItem(id) {
 async function printAllItems() {
   clearSelectedPrintItem();
   state.restoreFilterAfterPrint = state.filter;
+  state.restoreViewAfterPrint = {
+    view: state.view,
+    selectedSector: state.selectedSector,
+    selectedItemId: state.selectedItemId,
+  };
   document.body.classList.add("print-all");
   state.filter = "";
+  state.view = "print-all";
+  state.selectedSector = "";
+  state.selectedItemId = "";
   searchInput.value = "";
   renderItems();
   await waitForQrCodes(2500);
@@ -265,8 +384,16 @@ function handleAfterPrint() {
     state.filter = state.restoreFilterAfterPrint;
     searchInput.value = state.restoreFilterAfterPrint;
     state.restoreFilterAfterPrint = null;
-    renderItems();
   }
+
+  if (state.restoreViewAfterPrint) {
+    state.view = state.restoreViewAfterPrint.view;
+    state.selectedSector = state.restoreViewAfterPrint.selectedSector;
+    state.selectedItemId = state.restoreViewAfterPrint.selectedItemId;
+    state.restoreViewAfterPrint = null;
+  }
+
+  renderItems();
 }
 
 function clearSelectedPrintItem() {
