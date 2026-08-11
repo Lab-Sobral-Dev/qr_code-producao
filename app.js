@@ -13,7 +13,7 @@ const state = {
   items: loadItems(),
   filter: "",
   restoreFilterAfterPrint: null,
-  view: "sectors",
+  view: "list",
   selectedSector: "",
   selectedItemId: "",
   restoreViewAfterPrint: null,
@@ -36,6 +36,7 @@ const clearButton = document.querySelector("#clearButton");
 const newButton = document.querySelector("#newButton");
 const printAllButton = document.querySelector("#printAllButton");
 const searchInput = document.querySelector("#searchInput");
+const sectorFilters = document.querySelector("#sectorFilters");
 const itemsGrid = document.querySelector("#itemsGrid");
 const controlTableBody = document.querySelector("#controlTableBody");
 const tableSection = document.querySelector("#tableSection");
@@ -174,9 +175,10 @@ function resetForm() {
 function renderItems() {
   itemsGrid.innerHTML = "";
   controlTableBody.innerHTML = "";
+  sectorFilters.innerHTML = "";
 
-  if (state.view === "products") {
-    renderProductsView();
+  if (state.view === "list") {
+    renderListView();
     return;
   }
 
@@ -188,50 +190,57 @@ function renderItems() {
   if (state.view === "print-all") {
     listTitle.textContent = "Todos os QR Codes";
     backListButton.classList.add("hidden");
-    renderQrCards(getFilteredItems());
+    sectorFilters.classList.add("hidden");
+    renderQrCards(getListItems());
     return;
   }
 
-  renderSectorsView();
+  renderListView();
 }
 
-function renderSectorsView() {
-  const filteredItems = getFilteredItems();
-  const sectors = [...new Set(filteredItems.map((item) => item.address).filter(Boolean))].sort((a, b) =>
+function renderListView() {
+  const items = getListItems();
+
+  listTitle.textContent = state.selectedSector || "Todos os cadastros";
+  tableTitle.textContent = state.selectedSector ? `Cadastros do setor ${state.selectedSector}` : "Todos os cadastros por validade";
+  tableSection.classList.toggle("hidden", items.length === 0);
+  backListButton.classList.add("hidden");
+  emptyState.textContent = "Nenhum cadastro encontrado.";
+  emptyState.classList.toggle("hidden", items.length > 0);
+  itemsGrid.className = "items-grid hidden";
+  renderSectorFilters();
+  renderControlTable(items);
+}
+
+function renderSectorFilters() {
+  const sectors = [...new Set(state.items.map((item) => item.address).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, "pt-BR")
   );
 
-  listTitle.textContent = "Setores";
-  tableSection.classList.add("hidden");
-  backListButton.classList.add("hidden");
-  emptyState.classList.toggle("hidden", sectors.length > 0);
+  sectorFilters.classList.remove("hidden");
 
-  itemsGrid.className = "sector-grid";
+  const allButton = createSectorFilterButton("Todos", !state.selectedSector, () => {
+    state.selectedSector = "";
+    renderItems();
+  });
+  sectorFilters.appendChild(allButton);
+
   sectors.forEach((sector) => {
-    const button = document.createElement("button");
-    button.className = "sector-card";
-    button.type = "button";
-    button.innerHTML = `<strong></strong>`;
-    button.querySelector("strong").textContent = sector;
-    button.addEventListener("click", () => {
-      state.view = "products";
+    const button = createSectorFilterButton(sector, state.selectedSector === sector, () => {
       state.selectedSector = sector;
       renderItems();
     });
-    itemsGrid.appendChild(button);
+    sectorFilters.appendChild(button);
   });
 }
 
-function renderProductsView() {
-  const items = getFilteredItems().filter((item) => item.address === state.selectedSector);
-
-  listTitle.textContent = state.selectedSector;
-  tableTitle.textContent = "Produtos cadastrados do setor";
-  tableSection.classList.toggle("hidden", items.length === 0);
-  backListButton.classList.remove("hidden");
-  emptyState.classList.toggle("hidden", items.length > 0);
-  itemsGrid.className = "items-grid hidden";
-  renderControlTable(items);
+function createSectorFilterButton(label, isActive, onClick) {
+  const button = document.createElement("button");
+  button.className = `sector-filter${isActive ? " active" : ""}`;
+  button.type = "button";
+  button.textContent = label;
+  button.addEventListener("click", onClick);
+  return button;
 }
 
 function renderDetailView() {
@@ -240,6 +249,7 @@ function renderDetailView() {
   listTitle.textContent = item?.tag || "Recipiente";
   tableSection.classList.add("hidden");
   backListButton.classList.remove("hidden");
+  sectorFilters.classList.add("hidden");
   emptyState.classList.toggle("hidden", Boolean(item));
   itemsGrid.className = "items-grid detail-grid";
 
@@ -250,14 +260,13 @@ function renderDetailView() {
 
 function navigateBack() {
   if (state.view === "detail") {
-    state.view = "products";
+    state.view = "list";
     state.selectedItemId = "";
     renderItems();
     return;
   }
 
-  state.view = "sectors";
-  state.selectedSector = "";
+  state.view = "list";
   state.selectedItemId = "";
   renderItems();
 }
@@ -349,6 +358,28 @@ function getFilteredItems() {
     const searchable = `${item.tag} ${item.address} ${item.area || ""} ${item.owner || ""} ${item.solution || ""} ${item.prepCode || ""}`.toLowerCase();
     return searchable.includes(state.filter);
   });
+}
+
+function getListItems() {
+  return getFilteredItems()
+    .filter((item) => !state.selectedSector || item.address === state.selectedSector)
+    .sort(compareItemsByExpiration);
+}
+
+function compareItemsByExpiration(first, second) {
+  const firstTime = getExpirationTime(first.expiration);
+  const secondTime = getExpirationTime(second.expiration);
+
+  if (firstTime !== secondTime) {
+    return firstTime - secondTime;
+  }
+
+  return first.tag.localeCompare(second.tag, "pt-BR");
+}
+
+function getExpirationTime(dateValue) {
+  const time = dateValue ? new Date(`${dateValue}T00:00:00`).getTime() : NaN;
+  return Number.isFinite(time) ? time : Number.MAX_SAFE_INTEGER;
 }
 
 function printItem(id) {
