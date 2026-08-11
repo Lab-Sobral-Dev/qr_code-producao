@@ -1,8 +1,10 @@
 const STORAGE_KEY = "alcool70-registros";
+const SESSION_KEY = "alcool70-supabase-session";
 const DEFAULT_PUBLIC_BASE_URL = "https://lab-sobral-dev.github.io/qr_code-producao/";
 const SUPABASE_URL = "https://deierwldemkevanfxrwg.supabase.co";
 const SUPABASE_KEY = "sb_publishable_MjALJQJiaIt-fLg-YBLWPw_XLLcbm-5";
 const SUPABASE_TABLE = "alcool_registros";
+const SUPABASE_AUDIT_TABLE = "alcool_registros_historico";
 const SUPABASE_PUBLIC_LOOKUP = "consultar_alcool_registro";
 const MIN_EXPIRATION_DATE = "2026-01-01";
 const MAX_EXPIRATION_DATE = "2100-12-31";
@@ -17,8 +19,14 @@ const state = {
   selectedSector: "",
   selectedItemId: "",
   restoreViewAfterPrint: null,
+  session: loadSession(),
 };
 
+const authView = document.querySelector("#authView");
+const loginForm = document.querySelector("#loginForm");
+const emailInput = document.querySelector("#emailInput");
+const passwordInput = document.querySelector("#passwordInput");
+const authError = document.querySelector("#authError");
 const form = document.querySelector("#itemForm");
 const itemId = document.querySelector("#itemId");
 const tagInput = document.querySelector("#tagInput");
@@ -35,6 +43,10 @@ const deleteButton = document.querySelector("#deleteButton");
 const clearButton = document.querySelector("#clearButton");
 const newButton = document.querySelector("#newButton");
 const printAllButton = document.querySelector("#printAllButton");
+const historyButton = document.querySelector("#historyButton");
+const logoutButton = document.querySelector("#logoutButton");
+const closeHistoryButton = document.querySelector("#closeHistoryButton");
+const sessionUser = document.querySelector("#sessionUser");
 const searchInput = document.querySelector("#searchInput");
 const sectorFilters = document.querySelector("#sectorFilters");
 const itemsGrid = document.querySelector("#itemsGrid");
@@ -48,12 +60,18 @@ const backListButton = document.querySelector("#backListButton");
 const topbar = document.querySelector("#topbar");
 const dashboard = document.querySelector("#dashboard");
 const publicView = document.querySelector("#publicView");
+const historyPanel = document.querySelector("#historyPanel");
+const historyTableBody = document.querySelector("#historyTableBody");
 
+loginForm.addEventListener("submit", handleLogin);
 form.addEventListener("submit", handleSubmit);
 deleteButton.addEventListener("click", handleDelete);
 clearButton.addEventListener("click", resetForm);
 newButton.addEventListener("click", resetForm);
 printAllButton.addEventListener("click", printAllItems);
+historyButton.addEventListener("click", showHistory);
+logoutButton.addEventListener("click", handleLogout);
+closeHistoryButton.addEventListener("click", hideHistory);
 backListButton.addEventListener("click", navigateBack);
 searchInput.addEventListener("input", (event) => {
   state.filter = event.target.value.trim().toLowerCase();
@@ -71,11 +89,79 @@ async function render() {
     return;
   }
 
+  if (!state.session) {
+    renderLoginView();
+    return;
+  }
+
+  renderAdminView();
+  await refreshItemsFromDatabase();
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  setAuthError("");
+  loginForm.querySelector("button").disabled = true;
+
+  try {
+    state.session = await signInWithPassword(emailInput.value.trim(), passwordInput.value);
+    saveSession(state.session);
+    passwordInput.value = "";
+    renderAdminView();
+    await refreshItemsFromDatabase();
+  } catch (error) {
+    setAuthError(error.message || "Nao foi possivel entrar.");
+  } finally {
+    loginForm.querySelector("button").disabled = false;
+  }
+}
+
+async function handleLogout() {
+  try {
+    if (state.session?.access_token) {
+      await supabaseAuthRequest("logout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${state.session.access_token}`,
+        },
+      });
+    }
+  } catch (error) {
+    console.error(error);
+  } finally {
+    state.session = null;
+    saveSession(null);
+    state.items = [];
+    saveItems();
+    renderLoginView();
+  }
+}
+
+function setAuthError(message) {
+  authError.textContent = message;
+  authError.classList.toggle("hidden", !message);
+}
+
+function getSessionUserLabel() {
+  return state.session?.user?.email || state.session?.user?.id || "";
+}
+
+function renderLoginView() {
+  authView.classList.remove("hidden");
+  topbar.classList.add("hidden");
+  dashboard.classList.add("hidden");
+  publicView.classList.add("hidden");
+  historyPanel.classList.add("hidden");
+  emailInput.focus();
+}
+
+function renderAdminView() {
+  authView.classList.add("hidden");
   topbar.classList.remove("hidden");
   dashboard.classList.remove("hidden");
   publicView.classList.add("hidden");
+  sessionUser.textContent = getSessionUserLabel();
   renderItems();
-  await refreshItemsFromDatabase();
 }
 
 async function handleSubmit(event) {
@@ -315,6 +401,78 @@ function renderControlTable(items) {
   });
 }
 
+async function showHistory() {
+  historyPanel.classList.remove("hidden");
+  historyTableBody.innerHTML = `<tr><td colspan="5">Carregando histórico...</td></tr>`;
+
+  try {
+    const rows = await supabaseRequest(
+      `${SUPABASE_AUDIT_TABLE}?select=*&order=alterado_em.desc&limit=100`
+    );
+    renderHistoryRows(rows);
+  } catch (error) {
+    historyTableBody.innerHTML = "";
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+    cell.textContent = `Nao foi possivel carregar o histórico. ${error.message}`;
+    row.appendChild(cell);
+    historyTableBody.appendChild(row);
+  }
+}
+
+function hideHistory() {
+  historyPanel.classList.add("hidden");
+}
+
+function renderHistoryRows(rows) {
+  historyTableBody.innerHTML = "";
+
+  if (!rows.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+    cell.textContent = "Nenhuma alteração registrada.";
+    row.appendChild(cell);
+    historyTableBody.appendChild(row);
+    return;
+  }
+
+  rows.forEach((entry) => {
+    const row = document.createElement("tr");
+    const cells = [formatDateTime(entry.alterado_em), formatAuditAction(entry.acao), entry.tag || "-", entry.usuario_email || entry.usuario_id || "-", getAuditSummary(entry)];
+
+    cells.forEach((value) => {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.appendChild(cell);
+    });
+
+    historyTableBody.appendChild(row);
+  });
+}
+
+function formatAuditAction(action) {
+  const labels = {
+    INSERT: "Criação",
+    UPDATE: "Edição",
+    DELETE: "Exclusão",
+  };
+  return labels[action] || action || "-";
+}
+
+function getAuditSummary(entry) {
+  if (entry.acao === "INSERT") return "Cadastro criado";
+  if (entry.acao === "DELETE") return "Cadastro excluído";
+
+  const oldRecord = entry.valor_antigo || {};
+  const newRecord = entry.valor_novo || {};
+  const changedFields = Object.keys(newRecord).filter((key) => JSON.stringify(oldRecord[key]) !== JSON.stringify(newRecord[key]));
+
+  if (!changedFields.length) return "Sem alteração de campos";
+  return `Campos alterados: ${changedFields.join(", ")}`;
+}
+
 function renderQrCards(items) {
   if (!itemsGrid.classList.contains("detail-grid")) {
     itemsGrid.className = "items-grid";
@@ -469,6 +627,8 @@ async function renderPublicView() {
 
   dashboard.classList.add("hidden");
   topbar.classList.add("hidden");
+  authView.classList.add("hidden");
+  historyPanel.classList.add("hidden");
   publicView.classList.remove("hidden");
 
   if (!item) {
@@ -547,12 +707,47 @@ function formatDate(dateValue) {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${dateValue}T00:00:00Z`));
 }
 
+function formatDateTime(dateValue) {
+  if (!dateValue) return "-";
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(dateValue));
+}
+
 function loadItems() {
   try {
     return (JSON.parse(localStorage.getItem(STORAGE_KEY)) || []).map(normalizeLocalItem);
   } catch {
     return [];
   }
+}
+
+function loadSession() {
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY));
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(session) {
+  if (!session) {
+    localStorage.removeItem(SESSION_KEY);
+    return;
+  }
+
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+}
+
+function normalizeSession(session) {
+  const expiresAt = session.expires_at || Math.floor(Date.now() / 1000) + (session.expires_in || 3600);
+  return {
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    expires_at: expiresAt,
+    user: session.user || null,
+  };
 }
 
 function saveItems() {
@@ -658,6 +853,7 @@ async function getItemFromDatabase(id) {
     const rows = await supabaseRequest(`rpc/${SUPABASE_PUBLIC_LOOKUP}`, {
       method: "POST",
       body: JSON.stringify({ registro_id: id }),
+      publicAccess: true,
     });
     return rows[0] ? fromDatabaseItem(rows[0]) : null;
   } catch (error) {
@@ -666,14 +862,71 @@ async function getItemFromDatabase(id) {
   }
 }
 
-async function supabaseRequest(endpoint, options = {}) {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+async function signInWithPassword(email, password) {
+  const session = await supabaseAuthRequest("token?grant_type=password", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  return normalizeSession(session);
+}
+
+async function getValidAccessToken() {
+  if (!state.session?.access_token) {
+    throw new Error("Sessao expirada. Entre novamente.");
+  }
+
+  const expiresAt = state.session.expires_at || 0;
+  const shouldRefresh = expiresAt && Date.now() / 1000 > expiresAt - 60;
+  if (!shouldRefresh) {
+    return state.session.access_token;
+  }
+
+  try {
+    const refreshedSession = await supabaseAuthRequest("token?grant_type=refresh_token", {
+      method: "POST",
+      body: JSON.stringify({ refresh_token: state.session.refresh_token }),
+    });
+    state.session = normalizeSession(refreshedSession);
+    saveSession(state.session);
+    sessionUser.textContent = getSessionUserLabel();
+    return state.session.access_token;
+  } catch (error) {
+    state.session = null;
+    saveSession(null);
+    renderLoginView();
+    throw error;
+  }
+}
+
+async function supabaseAuthRequest(endpoint, options = {}) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/${endpoint}`, {
     ...options,
     headers: {
       apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
       "Content-Type": "application/json",
       ...(options.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    const details = await response.json().catch(() => null);
+    throw new Error(details?.error_description || details?.msg || details?.message || `Erro HTTP ${response.status}`);
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+async function supabaseRequest(endpoint, options = {}) {
+  const { publicAccess, ...requestOptions } = options;
+  const accessToken = publicAccess ? SUPABASE_KEY : await getValidAccessToken();
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+    ...requestOptions,
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      ...(requestOptions.headers || {}),
     },
   });
 

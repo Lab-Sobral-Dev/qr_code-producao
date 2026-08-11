@@ -8,6 +8,8 @@ O site e estatico no GitHub Pages e usa a chave publica do Supabase. Essa chave 
 
 - A pagina de consulta do QR Code agora busca dados somente pelo `id` no Supabase.
 - A consulta publica usa a funcao RPC `consultar_alcool_registro`, que retorna no maximo um registro pelo `id`.
+- A tela administrativa exige login Supabase para listar, cadastrar, editar e excluir.
+- A tabela `alcool_registros_historico` registra criacao, edicao e exclusao com usuario, data/hora e valores antes/depois.
 - Parametros como `tag`, `validade` e `setor` na URL nao sao mais aceitos como fonte da verdade.
 - Foi adicionada uma Content Security Policy nas paginas.
 - O cadastro valida campos obrigatorios, tamanho de texto e impede preparo posterior a validade.
@@ -17,4 +19,4 @@ O site e estatico no GitHub Pages e usa a chave publica do Supabase. Essa chave 
 
 Execute `supabase-security.sql` no SQL Editor do Supabase para bloquear leitura direta e escrita anonima na tabela. Sem isso, qualquer pessoa com conhecimento tecnico ainda pode chamar a API publica e listar, cadastrar, editar ou excluir registros.
 
-Depois de aplicar esse SQL, sera necessario adicionar login Supabase na tela administrativa para listar e salvar alteracoes. A leitura publica dos QR Codes continua funcionando somente por `id`, via `consultar_alcool_registro`.
+Depois de aplicar esse SQL, crie os usuarios autorizados em Authentication no Supabase. A leitura publica dos QR Codes continua funcionando somente por `id`, via `consultar_alcool_registro`.

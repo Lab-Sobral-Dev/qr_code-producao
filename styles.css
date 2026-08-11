@@ -154,6 +154,52 @@ textarea {
   align-items: start;
 }
 
+.auth-view {
+  min-height: calc(100vh - 44px);
+  display: grid;
+  place-items: center;
+}
+
+.auth-card {
+  width: min(440px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 28px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.auth-card h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.8rem;
+  line-height: 1.1;
+}
+
+.auth-copy {
+  margin: 12px 0 18px;
+  color: var(--ink-light);
+  line-height: 1.45;
+}
+
+.auth-error {
+  margin: 14px 0 0;
+  border: 1px solid #ffd0d0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffe8e8;
+  color: var(--danger);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.session-user {
+  align-self: center;
+  color: var(--ink-light);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
 .panel,
 .public-card {
   background: rgba(255, 255, 255, 0.92);
@@ -168,6 +214,14 @@ textarea {
 
 .list-panel {
   min-width: 0;
+}
+
+.history-panel {
+  margin-top: 22px;
+}
+
+.history-table {
+  min-width: 900px;
 }
 
 .form-panel {
