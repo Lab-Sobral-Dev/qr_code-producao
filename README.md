@@ -25,7 +25,7 @@ Quando aberto diretamente pelo arquivo local, os QR Codes tambem apontam para es
 - TAG Borrifador
 - Setor
 - Área
-- Responsavel
+- Responsável
 - Nome da solucao atual
 - Data do preparo
 - Data de validade
