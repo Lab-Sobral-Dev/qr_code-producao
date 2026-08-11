@@ -532,7 +532,7 @@ function validateRecord(record) {
     ["TAG Borrifador", record.tag],
     ["Setor", record.address],
     ["Área", record.area],
-    ["Nome da solucao atual", record.solution],
+    ["Nome da solução atual", record.solution],
     ["Data do preparo", record.preparation],
     ["Data de validade", record.expiration],
     ["Codigo do preparo", record.prepCode],
