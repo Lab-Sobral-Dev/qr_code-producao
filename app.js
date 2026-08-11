@@ -22,6 +22,7 @@ const state = {
   restoreViewAfterPrint: null,
   session: loadSession(),
   mustChangePassword: false,
+  isAdmin: false,
 };
 
 const authView = document.querySelector("#authView");
@@ -107,6 +108,7 @@ async function render() {
     return;
   }
 
+  await refreshAdminState();
   renderAdminView();
   await refreshItemsFromDatabase();
 }
@@ -145,6 +147,7 @@ async function completeLogin(email, password) {
   state.session = await signInWithPassword(email, password);
   saveSession(state.session);
   passwordInput.value = "";
+  await refreshAdminState();
   if (await getMustChangePassword()) {
     renderPasswordChangeView();
     return;
@@ -202,6 +205,7 @@ async function handleLogout() {
   } finally {
     state.session = null;
     state.mustChangePassword = false;
+    state.isAdmin = false;
     saveSession(null);
     state.items = [];
     saveItems();
@@ -250,7 +254,10 @@ function renderAdminView() {
   topbar.classList.remove("hidden");
   dashboard.classList.remove("hidden");
   publicView.classList.add("hidden");
-  sessionUser.textContent = getSessionUserLabel();
+  sessionUser.textContent = state.isAdmin ? getSessionUserLabel() : "";
+  sessionUser.classList.toggle("hidden", !state.isAdmin);
+  historyButton.classList.toggle("hidden", !state.isAdmin);
+  historyPanel.classList.add("hidden");
   renderItems();
 }
 
@@ -503,6 +510,11 @@ function renderControlTable(items) {
 }
 
 async function showHistory() {
+  if (!state.isAdmin && !(await refreshAdminState())) {
+    historyPanel.classList.add("hidden");
+    return;
+  }
+
   historyPanel.classList.remove("hidden");
   historyTableBody.innerHTML = `<tr><td colspan="5">Carregando histórico...</td></tr>`;
 
@@ -1015,6 +1027,25 @@ async function markPasswordChanged() {
       atualizado_em: new Date().toISOString(),
     }),
   });
+}
+
+async function refreshAdminState() {
+  const userId = state.session?.user?.id;
+
+  if (!userId) {
+    state.isAdmin = false;
+    return false;
+  }
+
+  try {
+    const rows = await supabaseRequest(`app_administradores?usuario_id=eq.${encodeURIComponent(userId)}&ativo=eq.true&select=usuario_id&limit=1`);
+    state.isAdmin = Boolean(rows[0]);
+  } catch (error) {
+    console.error(error);
+    state.isAdmin = false;
+  }
+
+  return state.isAdmin;
 }
 
 async function signInWithPassword(email, password) {
