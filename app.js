@@ -531,7 +531,7 @@ function validateRecord(record) {
   const requiredFields = [
     ["TAG Borrifador", record.tag],
     ["Setor", record.address],
-    ["Area", record.area],
+    ["Área", record.area],
     ["Nome da solucao atual", record.solution],
     ["Data do preparo", record.preparation],
     ["Data de validade", record.expiration],
