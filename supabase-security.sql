@@ -1,6 +1,7 @@
 -- Execute no SQL Editor do Supabase para endurecer as permissoes.
 -- Mantem consulta publica somente por id via RPC e bloqueia acesso anonimo direto a tabela.
--- Depois de aplicar, o app administrativo precisara usar login Supabase autorizado para listar e gravar.
+-- Depois de aplicar, qualquer usuario autenticado pode listar e gravar.
+-- Somente administradores cadastrados em app_administradores podem ver o historico.
 -- Tambem cria historico de auditoria com usuario, data/hora e valores alterados.
 
 alter table public.alcool_registros enable row level security;
@@ -8,26 +9,27 @@ alter table public.alcool_registros enable row level security;
 revoke all on public.alcool_registros from anon;
 grant select, insert, update, delete on public.alcool_registros to authenticated;
 
-create table if not exists public.app_usuarios_autorizados (
+create table if not exists public.app_administradores (
   usuario_id uuid primary key references auth.users(id) on delete cascade,
   email text,
   ativo boolean not null default true,
   criado_em timestamptz not null default now()
 );
 
-alter table public.app_usuarios_autorizados enable row level security;
+alter table public.app_administradores enable row level security;
 
-drop policy if exists "Usuario ve propria autorizacao" on public.app_usuarios_autorizados;
+drop policy if exists "Usuario ve propria autorizacao" on public.app_administradores;
+drop policy if exists "Admin ve proprio cadastro" on public.app_administradores;
 
-create policy "Usuario ve propria autorizacao"
-on public.app_usuarios_autorizados
+create policy "Admin ve proprio cadastro"
+on public.app_administradores
 for select
 to authenticated
 using (usuario_id = auth.uid());
 
-grant select on public.app_usuarios_autorizados to authenticated;
+grant select on public.app_administradores to authenticated;
 
-create or replace function public.usuario_app_autorizado()
+create or replace function public.usuario_app_admin()
 returns boolean
 language sql
 stable
@@ -36,14 +38,14 @@ set search_path = public
 as $$
   select exists (
     select 1
-    from public.app_usuarios_autorizados u
+    from public.app_administradores u
     where u.usuario_id = auth.uid()
       and u.ativo = true
   );
 $$;
 
-revoke all on function public.usuario_app_autorizado() from public;
-grant execute on function public.usuario_app_autorizado() to authenticated;
+revoke all on function public.usuario_app_admin() from public;
+grant execute on function public.usuario_app_admin() to authenticated;
 
 drop policy if exists "Permitir leitura publica" on public.alcool_registros;
 drop policy if exists "Permitir leitura autenticada" on public.alcool_registros;
@@ -106,7 +108,7 @@ create policy "Permitir leitura autenticada historico"
 on public.alcool_registros_historico
 for select
 to authenticated
-using (public.usuario_app_autorizado());
+using (public.usuario_app_admin());
 
 revoke insert, update, delete on public.alcool_registros_historico from anon, authenticated;
 grant select on public.alcool_registros_historico to authenticated;
@@ -155,23 +157,23 @@ create policy "Permitir leitura autenticada"
 on public.alcool_registros
 for select
 to authenticated
-using (public.usuario_app_autorizado());
+using (true);
 
 create policy "Permitir cadastro autenticado"
 on public.alcool_registros
 for insert
 to authenticated
-with check (public.usuario_app_autorizado());
+with check (true);
 
 create policy "Permitir edicao autenticada"
 on public.alcool_registros
 for update
 to authenticated
-using (public.usuario_app_autorizado())
-with check (public.usuario_app_autorizado());
+using (true)
+with check (true);
 
 create policy "Permitir exclusao autenticada"
 on public.alcool_registros
 for delete
 to authenticated
-using (public.usuario_app_autorizado());
+using (true);

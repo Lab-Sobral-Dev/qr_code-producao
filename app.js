@@ -440,7 +440,7 @@ async function showHistory() {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     cell.colSpan = 5;
-    cell.textContent = `Nao foi possivel carregar o histórico. ${error.message}`;
+    cell.textContent = `Histórico restrito ao administrador. ${error.message}`;
     row.appendChild(cell);
     historyTableBody.appendChild(row);
   }
@@ -821,18 +821,8 @@ async function refreshItemsFromDatabase() {
     renderItems();
   } catch (error) {
     console.error(error);
-    state.items = [];
     renderItems();
-    if (isAuthorizationError(error)) {
-      emptyState.textContent = "Usuário sem autorização para acessar os cadastros. Solicite liberação no Supabase.";
-      emptyState.classList.remove("hidden");
-    }
   }
-}
-
-function isAuthorizationError(error) {
-  const message = String(error?.message || "").toLowerCase();
-  return message.includes("permission denied") || message.includes("row-level security") || message.includes("42501");
 }
 
 async function saveItemToDatabase(item) {
