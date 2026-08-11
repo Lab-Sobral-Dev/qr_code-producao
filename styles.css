@@ -435,8 +435,7 @@ textarea {
   background: rgba(255, 255, 255, 0.1);
 }
 
-.login-error,
-.login-success {
+.login-error {
   margin: 0;
   border: 1px solid rgba(239, 68, 68, 0.25);
   border-radius: 8px;
@@ -447,14 +446,7 @@ textarea {
   text-align: center;
 }
 
-.login-success {
-  border-color: rgba(46, 133, 64, 0.4);
-  background: rgba(46, 133, 64, 0.14);
-  color: #86efac;
-}
-
-.btn-submit,
-.btn-secondary {
+.btn-submit {
   width: 100%;
   border: 0;
   border-radius: 12px;
@@ -474,7 +466,7 @@ textarea {
 }
 
 .btn-submit:hover:not(:disabled),
-.btn-secondary:hover:not(:disabled) {
+.btn-submit:hover:not(:disabled) {
   transform: translateY(-2px);
 }
 
@@ -482,14 +474,7 @@ textarea {
   box-shadow: 0 8px 24px rgba(231, 99, 39, 0.4);
 }
 
-.btn-secondary {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.07);
-  color: rgba(255, 255, 255, 0.78);
-}
-
-.btn-submit:disabled,
-.btn-secondary:disabled {
+.btn-submit:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

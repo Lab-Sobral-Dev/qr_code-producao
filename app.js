@@ -27,7 +27,6 @@ const loginForm = document.querySelector("#loginForm");
 const emailInput = document.querySelector("#emailInput");
 const passwordInput = document.querySelector("#passwordInput");
 const authError = document.querySelector("#authError");
-const authSuccess = document.querySelector("#authSuccess");
 const form = document.querySelector("#itemForm");
 const itemId = document.querySelector("#itemId");
 const tagInput = document.querySelector("#tagInput");
@@ -101,24 +100,15 @@ async function render() {
 
 async function handleLogin(event) {
   event.preventDefault();
-  const action = event.submitter?.value || "login";
   const email = emailInput.value.trim();
   const password = passwordInput.value;
   setAuthError("");
-  setAuthSuccess("");
   setAuthButtonsEnabled(false);
 
   try {
     const validationError = validateAuthFields(email, password);
     if (validationError) {
       setAuthError(validationError);
-      return;
-    }
-
-    if (action === "signup") {
-      await signUpWithPassword(email, password);
-      passwordInput.value = "";
-      setAuthSuccess("Usuário criado. Agora entre com o e-mail e a senha cadastrados.");
       return;
     }
 
@@ -170,11 +160,6 @@ async function handleLogout() {
 function setAuthError(message) {
   authError.textContent = message;
   authError.classList.toggle("hidden", !message);
-}
-
-function setAuthSuccess(message) {
-  authSuccess.textContent = message;
-  authSuccess.classList.toggle("hidden", !message);
 }
 
 function setAuthButtonsEnabled(enabled) {
@@ -909,13 +894,6 @@ async function signInWithPassword(email, password) {
     body: JSON.stringify({ email, password }),
   });
   return normalizeSession(session);
-}
-
-async function signUpWithPassword(email, password) {
-  return supabaseAuthRequest("signup", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
 }
 
 async function getValidAccessToken() {
