@@ -1074,7 +1074,10 @@ async function getValidAccessToken() {
     });
     state.session = normalizeSession(refreshedSession);
     saveSession(state.session);
-    sessionUser.textContent = getSessionUserLabel();
+    await refreshAdminState();
+    sessionUser.textContent = state.isAdmin ? getSessionUserLabel() : "";
+    sessionUser.classList.toggle("hidden", !state.isAdmin);
+    historyButton.classList.toggle("hidden", !state.isAdmin);
     return state.session.access_token;
   } catch (error) {
     state.session = null;
