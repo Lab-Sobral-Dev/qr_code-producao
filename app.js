@@ -213,7 +213,7 @@ function renderListView() {
 }
 
 function renderSectorFilters() {
-  const sectors = [...new Set(state.items.map((item) => item.address).filter(Boolean))].sort((a, b) =>
+  const sectors = [...new Set(state.items.map((item) => getSectorFilterLabel(item.address)).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, "pt-BR")
   );
 
@@ -362,8 +362,13 @@ function getFilteredItems() {
 
 function getListItems() {
   return getFilteredItems()
-    .filter((item) => !state.selectedSector || item.address === state.selectedSector)
+    .filter((item) => !state.selectedSector || getSectorFilterLabel(item.address) === state.selectedSector)
     .sort(compareItemsByExpiration);
+}
+
+function getSectorFilterLabel(address) {
+  const sector = address || "";
+  return sector.toLowerCase().includes("produção") || sector.toLowerCase().includes("producao") ? "Produção" : sector;
 }
 
 function compareItemsByExpiration(first, second) {
