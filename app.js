@@ -257,6 +257,7 @@ function renderAdminView() {
   sessionUser.textContent = state.isAdmin ? getSessionUserLabel() : "";
   sessionUser.classList.toggle("hidden", !state.isAdmin);
   historyButton.classList.toggle("hidden", !state.isAdmin);
+  newButton.classList.toggle("hidden", !state.isAdmin);
   historyPanel.classList.add("hidden");
   renderItems();
 }
@@ -1078,6 +1079,7 @@ async function getValidAccessToken() {
     sessionUser.textContent = state.isAdmin ? getSessionUserLabel() : "";
     sessionUser.classList.toggle("hidden", !state.isAdmin);
     historyButton.classList.toggle("hidden", !state.isAdmin);
+    newButton.classList.toggle("hidden", !state.isAdmin);
     return state.session.access_token;
   } catch (error) {
     state.session = null;
