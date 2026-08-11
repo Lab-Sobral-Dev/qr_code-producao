@@ -29,28 +29,63 @@
       </section>
 
       <section class="auth-view hidden" id="authView" aria-live="polite">
-        <form class="auth-card" id="loginForm">
-          <p class="eyebrow">Acesso administrativo</p>
-          <h2>PREPARO DE SOLUÇÕES</h2>
-          <p class="auth-copy">Entre ou crie seu usuário para cadastrar, editar e acompanhar alterações.</p>
-
-          <label>
-            E-mail
-            <input id="emailInput" name="email" type="email" autocomplete="username" required />
-          </label>
-
-          <label>
-            Senha
-            <input id="passwordInput" name="password" type="password" autocomplete="current-password" required />
-          </label>
-
-          <p class="auth-error hidden" id="authError"></p>
-          <p class="auth-success hidden" id="authSuccess"></p>
-          <div class="auth-actions">
-            <button class="button primary" name="authAction" type="submit" value="login">Entrar</button>
-            <button class="button ghost" name="authAction" type="submit" value="signup">Criar usuário</button>
+        <div class="login-root">
+          <div class="login-left">
+            <div class="login-left-bg"></div>
+            <div class="login-overlay"></div>
+            <div class="login-left-deco"></div>
+            <div class="login-deco-circle"></div>
+            <div class="login-deco-corner-tr"></div>
+            <div class="login-deco-corner-bl"></div>
+            <svg class="login-deco-lines" viewBox="0 0 500 700" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <line x1="0" y1="200" x2="200" y2="0" stroke="rgba(255,255,255,0.07)" stroke-width="1" />
+              <line x1="0" y1="350" x2="350" y2="0" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+              <line x1="50" y1="700" x2="500" y2="250" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
+              <line x1="0" y1="500" x2="500" y2="0" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
+              <circle cx="420" cy="80" r="60" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+              <circle cx="420" cy="80" r="90" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+              <circle cx="80" cy="620" r="80" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1" />
+              <circle cx="80" cy="620" r="120" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
+            </svg>
+            <div class="login-left-content">
+              <div class="login-left-logo" aria-hidden="true">LS</div>
+              <h1>PREPARO DE SOLUÇÕES</h1>
+              <p class="brand-sub">Laboratório Sobral</p>
+            </div>
           </div>
-        </form>
+
+          <div class="login-right">
+            <div class="login-card">
+              <div class="login-card-header">
+                <div class="login-card-header-logo" aria-hidden="true">LS</div>
+              </div>
+              <div class="login-card-body">
+                <h2>Entre na sua conta</h2>
+                <p class="subtitle">Área restrita · Colaboradores autorizados</p>
+                <div class="card-divider"></div>
+
+                <form class="login-form" id="loginForm" novalidate>
+                  <div class="form-group">
+                    <label class="form-label" for="emailInput">E-mail</label>
+                    <input class="form-input" id="emailInput" name="email" type="email" autocomplete="username" required />
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="passwordInput">Senha</label>
+                    <input class="form-input" id="passwordInput" name="password" type="password" autocomplete="current-password" required />
+                  </div>
+
+                  <p class="login-error hidden" id="authError"></p>
+                  <p class="login-success hidden" id="authSuccess"></p>
+                  <button class="btn-submit" name="authAction" type="submit" value="login">Entrar</button>
+                  <button class="btn-secondary" name="authAction" type="submit" value="signup">Criar usuário</button>
+                </form>
+
+                <p class="card-footer">Usuários novos precisam de autorização administrativa para acessar os cadastros.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="public-view hidden" id="publicView" aria-live="polite">
