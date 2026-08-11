@@ -27,6 +27,7 @@ const loginForm = document.querySelector("#loginForm");
 const emailInput = document.querySelector("#emailInput");
 const passwordInput = document.querySelector("#passwordInput");
 const authError = document.querySelector("#authError");
+const authSuccess = document.querySelector("#authSuccess");
 const form = document.querySelector("#itemForm");
 const itemId = document.querySelector("#itemId");
 const tagInput = document.querySelector("#tagInput");
@@ -100,20 +101,33 @@ async function render() {
 
 async function handleLogin(event) {
   event.preventDefault();
+  const action = event.submitter?.value || "login";
   setAuthError("");
-  loginForm.querySelector("button").disabled = true;
+  setAuthSuccess("");
+  setAuthButtonsEnabled(false);
 
   try {
-    state.session = await signInWithPassword(emailInput.value.trim(), passwordInput.value);
-    saveSession(state.session);
-    passwordInput.value = "";
-    renderAdminView();
-    await refreshItemsFromDatabase();
+    if (action === "signup") {
+      await signUpWithPassword(emailInput.value.trim(), passwordInput.value);
+      passwordInput.value = "";
+      setAuthSuccess("Usuário criado. Agora entre com o e-mail e a senha cadastrados.");
+      return;
+    }
+
+    await completeLogin(emailInput.value.trim(), passwordInput.value);
   } catch (error) {
     setAuthError(error.message || "Nao foi possivel entrar.");
   } finally {
-    loginForm.querySelector("button").disabled = false;
+    setAuthButtonsEnabled(true);
   }
+}
+
+async function completeLogin(email, password) {
+  state.session = await signInWithPassword(email, password);
+  saveSession(state.session);
+  passwordInput.value = "";
+  renderAdminView();
+  await refreshItemsFromDatabase();
 }
 
 async function handleLogout() {
@@ -140,6 +154,17 @@ async function handleLogout() {
 function setAuthError(message) {
   authError.textContent = message;
   authError.classList.toggle("hidden", !message);
+}
+
+function setAuthSuccess(message) {
+  authSuccess.textContent = message;
+  authSuccess.classList.toggle("hidden", !message);
+}
+
+function setAuthButtonsEnabled(enabled) {
+  loginForm.querySelectorAll("button").forEach((button) => {
+    button.disabled = !enabled;
+  });
 }
 
 function getSessionUserLabel() {
@@ -796,8 +821,18 @@ async function refreshItemsFromDatabase() {
     renderItems();
   } catch (error) {
     console.error(error);
+    state.items = [];
     renderItems();
+    if (isAuthorizationError(error)) {
+      emptyState.textContent = "Usuário sem autorização para acessar os cadastros. Solicite liberação no Supabase.";
+      emptyState.classList.remove("hidden");
+    }
   }
+}
+
+function isAuthorizationError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("permission denied") || message.includes("row-level security") || message.includes("42501");
 }
 
 async function saveItemToDatabase(item) {
@@ -868,6 +903,13 @@ async function signInWithPassword(email, password) {
     body: JSON.stringify({ email, password }),
   });
   return normalizeSession(session);
+}
+
+async function signUpWithPassword(email, password) {
+  return supabaseAuthRequest("signup", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
 }
 
 async function getValidAccessToken() {

@@ -32,7 +32,7 @@
         <form class="auth-card" id="loginForm">
           <p class="eyebrow">Acesso administrativo</p>
           <h2>PREPARO DE SOLUÇÕES</h2>
-          <p class="auth-copy">Entre com seu usuário Supabase para cadastrar, editar e acompanhar alterações.</p>
+          <p class="auth-copy">Entre ou crie seu usuário para cadastrar, editar e acompanhar alterações.</p>
 
           <label>
             E-mail
@@ -45,7 +45,11 @@
           </label>
 
           <p class="auth-error hidden" id="authError"></p>
-          <button class="button primary" type="submit">Entrar</button>
+          <p class="auth-success hidden" id="authSuccess"></p>
+          <div class="auth-actions">
+            <button class="button primary" name="authAction" type="submit" value="login">Entrar</button>
+            <button class="button ghost" name="authAction" type="submit" value="signup">Criar usuário</button>
+          </div>
         </form>
       </section>
 

@@ -182,7 +182,8 @@ textarea {
   line-height: 1.45;
 }
 
-.auth-error {
+.auth-error,
+.auth-success {
   margin: 14px 0 0;
   border: 1px solid #ffd0d0;
   border-radius: 8px;
@@ -191,6 +192,19 @@ textarea {
   color: var(--danger);
   font-size: 0.9rem;
   font-weight: 700;
+}
+
+.auth-success {
+  border-color: #cfe8d5;
+  background: #ebf5ed;
+  color: #1f5e2c;
+}
+
+.auth-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .session-user {
