@@ -268,20 +268,18 @@ function renderControlTable(items) {
     const row = document.createElement("tr");
     row.className = "product-row";
     row.innerHTML = `
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
       <td><span class="table-status"></span></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
       <td></td>
     `;
 
     const cells = row.querySelectorAll("td");
-    cells[0].textContent = item.tag;
-    cells[0].classList.add("recipient-cell");
     cells[0].title = "Abrir QR Code e detalhes";
     cells[1].textContent = item.address;
     cells[2].textContent = item.area || "-";
@@ -289,6 +287,9 @@ function renderControlTable(items) {
     cells[4].textContent = item.solution || "Nao informado";
     cells[5].textContent = formatDate(item.preparation);
     cells[6].textContent = formatDate(item.expiration);
+    cells[7].textContent = item.tag;
+    cells[7].classList.add("recipient-cell");
+    cells[7].title = "Abrir QR Code e detalhes";
     cells[8].textContent = item.prepCode || "Nao informado";
 
     const statusElement = row.querySelector(".table-status");
