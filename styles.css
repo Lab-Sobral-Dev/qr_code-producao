@@ -371,6 +371,7 @@ textarea {
 }
 
 .item-card h3 {
+  display: block;
   margin: 8px 0 0;
   font-size: 1.45rem;
   line-height: 1.15;
@@ -389,6 +390,7 @@ textarea {
   color: var(--primary-dark);
   font-size: 0.78rem;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .status-pill.expired {
