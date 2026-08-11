@@ -3,6 +3,7 @@ const DEFAULT_PUBLIC_BASE_URL = "https://lab-sobral-dev.github.io/qr_code-produc
 const SUPABASE_URL = "https://deierwldemkevanfxrwg.supabase.co";
 const SUPABASE_KEY = "sb_publishable_MjALJQJiaIt-fLg-YBLWPw_XLLcbm-5";
 const SUPABASE_TABLE = "alcool_registros";
+const SUPABASE_PUBLIC_LOOKUP = "consultar_alcool_registro";
 const MIN_EXPIRATION_DATE = "2026-01-01";
 const MAX_EXPIRATION_DATE = "2100-12-31";
 const MAX_TEXT_LENGTH = 120;
@@ -617,7 +618,10 @@ async function getItemFromDatabase(id) {
   if (!id) return null;
 
   try {
-    const rows = await supabaseRequest(`${SUPABASE_TABLE}?id=eq.${encodeURIComponent(id)}&select=*&limit=1`);
+    const rows = await supabaseRequest(`rpc/${SUPABASE_PUBLIC_LOOKUP}`, {
+      method: "POST",
+      body: JSON.stringify({ registro_id: id }),
+    });
     return rows[0] ? fromDatabaseItem(rows[0]) : null;
   } catch (error) {
     console.error(error);

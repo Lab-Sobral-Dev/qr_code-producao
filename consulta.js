@@ -1,6 +1,6 @@
 const SUPABASE_URL = "https://deierwldemkevanfxrwg.supabase.co";
 const SUPABASE_KEY = "sb_publishable_MjALJQJiaIt-fLg-YBLWPw_XLLcbm-5";
-const SUPABASE_TABLE = "alcool_registros";
+const SUPABASE_PUBLIC_LOOKUP = "consultar_alcool_registro";
 
 renderReadOnlyView();
 
@@ -39,7 +39,10 @@ async function getItemFromDatabase(id) {
   if (!id) return null;
 
   try {
-    const rows = await supabaseRequest(`${SUPABASE_TABLE}?id=eq.${encodeURIComponent(id)}&select=*&limit=1`);
+    const rows = await supabaseRequest(`rpc/${SUPABASE_PUBLIC_LOOKUP}`, {
+      method: "POST",
+      body: JSON.stringify({ registro_id: id }),
+    });
     return rows[0] ? fromDatabaseItem(rows[0]) : null;
   } catch (error) {
     console.error(error);
@@ -47,12 +50,14 @@ async function getItemFromDatabase(id) {
   }
 }
 
-async function supabaseRequest(endpoint) {
+async function supabaseRequest(endpoint, options = {}) {
   const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+    ...options,
     headers: {
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`,
       "Content-Type": "application/json",
+      ...(options.headers || {}),
     },
   });
 
