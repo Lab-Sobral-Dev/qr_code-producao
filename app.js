@@ -397,7 +397,7 @@ function renderListView() {
   const items = getListItems();
 
   listTitle.textContent = state.selectedSector || "Todos os cadastros";
-  tableTitle.textContent = state.selectedSector ? `Cadastros do setor ${state.selectedSector}` : "Todos os cadastros por validade";
+  tableTitle.textContent = state.selectedSector ? `Cadastros do setor ${state.selectedSector}` : "";
   tableSection.classList.toggle("hidden", items.length === 0);
   backListButton.classList.add("hidden");
   emptyState.textContent = "Nenhum cadastro encontrado.";
