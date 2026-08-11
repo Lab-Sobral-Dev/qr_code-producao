@@ -47,6 +47,48 @@ $$;
 revoke all on function public.usuario_app_admin() from public;
 grant execute on function public.usuario_app_admin() to authenticated;
 
+create table if not exists public.app_perfis_usuarios (
+  usuario_id uuid primary key references auth.users(id) on delete cascade,
+  email text,
+  deve_trocar_senha boolean not null default true,
+  criado_em timestamptz not null default now(),
+  atualizado_em timestamptz not null default now()
+);
+
+alter table public.app_perfis_usuarios enable row level security;
+
+drop policy if exists "Usuario gerencia proprio perfil" on public.app_perfis_usuarios;
+
+create policy "Usuario gerencia proprio perfil"
+on public.app_perfis_usuarios
+for all
+to authenticated
+using (usuario_id = auth.uid())
+with check (usuario_id = auth.uid());
+
+grant select, insert, update on public.app_perfis_usuarios to authenticated;
+
+create or replace function public.criar_perfil_usuario_app()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.app_perfis_usuarios (usuario_id, email, deve_trocar_senha)
+  values (new.id, new.email, true)
+  on conflict (usuario_id) do nothing;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists criar_perfil_usuario_app on auth.users;
+
+create trigger criar_perfil_usuario_app
+after insert on auth.users
+for each row execute function public.criar_perfil_usuario_app();
+
 drop policy if exists "Permitir leitura publica" on public.alcool_registros;
 drop policy if exists "Permitir leitura autenticada" on public.alcool_registros;
 drop policy if exists "Permitir cadastro publico" on public.alcool_registros;

@@ -128,6 +128,54 @@
         </div>
       </section>
 
+      <section class="auth-view hidden" id="passwordView" aria-live="polite">
+        <div class="login-root">
+          <div class="login-left">
+            <div class="login-left-bg"></div>
+            <div class="login-overlay"></div>
+            <div class="login-left-deco"></div>
+            <div class="login-deco-circle"></div>
+            <div class="login-deco-corner-tr"></div>
+            <div class="login-deco-corner-bl"></div>
+            <div class="login-left-content">
+              <div class="login-left-logo" aria-hidden="true">LS</div>
+              <h1>PRIMEIRO ACESSO</h1>
+              <p class="brand-sub">Defina sua senha individual</p>
+            </div>
+          </div>
+
+          <div class="login-right">
+            <div class="login-card">
+              <div class="login-card-header">
+                <div class="login-card-header-logo" aria-hidden="true">LS</div>
+              </div>
+              <div class="login-card-body">
+                <h2>Definir nova senha</h2>
+                <p class="subtitle">A senha padrão deve ser trocada antes de acessar o sistema</p>
+                <div class="card-divider"></div>
+
+                <form class="login-form" id="passwordForm" novalidate>
+                  <div class="form-group">
+                    <label class="form-label" for="newPasswordInput">Nova senha</label>
+                    <input class="form-input" id="newPasswordInput" name="newPassword" type="password" autocomplete="new-password" required />
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="confirmPasswordInput">Confirmar nova senha</label>
+                    <input class="form-input" id="confirmPasswordInput" name="confirmPassword" type="password" autocomplete="new-password" required />
+                  </div>
+
+                  <p class="login-error hidden" id="passwordError"></p>
+                  <button class="btn-submit" type="submit">Salvar nova senha</button>
+                </form>
+
+                <p class="card-footer">Use pelo menos 6 caracteres. Esta etapa aparece apenas no primeiro acesso.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="dashboard" id="dashboard">
         <form class="panel form-panel" id="itemForm">
           <input id="itemId" type="hidden" />

@@ -5,6 +5,7 @@ const SUPABASE_URL = "https://deierwldemkevanfxrwg.supabase.co";
 const SUPABASE_KEY = "sb_publishable_MjALJQJiaIt-fLg-YBLWPw_XLLcbm-5";
 const SUPABASE_TABLE = "alcool_registros";
 const SUPABASE_AUDIT_TABLE = "alcool_registros_historico";
+const SUPABASE_PROFILE_TABLE = "app_perfis_usuarios";
 const SUPABASE_PUBLIC_LOOKUP = "consultar_alcool_registro";
 const MIN_EXPIRATION_DATE = "2026-01-01";
 const MAX_EXPIRATION_DATE = "2100-12-31";
@@ -20,6 +21,7 @@ const state = {
   selectedItemId: "",
   restoreViewAfterPrint: null,
   session: loadSession(),
+  mustChangePassword: false,
 };
 
 const authView = document.querySelector("#authView");
@@ -27,6 +29,11 @@ const loginForm = document.querySelector("#loginForm");
 const emailInput = document.querySelector("#emailInput");
 const passwordInput = document.querySelector("#passwordInput");
 const authError = document.querySelector("#authError");
+const passwordView = document.querySelector("#passwordView");
+const passwordForm = document.querySelector("#passwordForm");
+const newPasswordInput = document.querySelector("#newPasswordInput");
+const confirmPasswordInput = document.querySelector("#confirmPasswordInput");
+const passwordError = document.querySelector("#passwordError");
 const form = document.querySelector("#itemForm");
 const itemId = document.querySelector("#itemId");
 const tagInput = document.querySelector("#tagInput");
@@ -64,6 +71,7 @@ const historyPanel = document.querySelector("#historyPanel");
 const historyTableBody = document.querySelector("#historyTableBody");
 
 loginForm.addEventListener("submit", handleLogin);
+passwordForm.addEventListener("submit", handlePasswordChange);
 form.addEventListener("submit", handleSubmit);
 deleteButton.addEventListener("click", handleDelete);
 clearButton.addEventListener("click", resetForm);
@@ -91,6 +99,11 @@ async function render() {
 
   if (!state.session) {
     renderLoginView();
+    return;
+  }
+
+  if (await getMustChangePassword()) {
+    renderPasswordChangeView();
     return;
   }
 
@@ -132,8 +145,46 @@ async function completeLogin(email, password) {
   state.session = await signInWithPassword(email, password);
   saveSession(state.session);
   passwordInput.value = "";
+  if (await getMustChangePassword()) {
+    renderPasswordChangeView();
+    return;
+  }
+
   renderAdminView();
   await refreshItemsFromDatabase();
+}
+
+async function handlePasswordChange(event) {
+  event.preventDefault();
+  setPasswordError("");
+  setPasswordButtonsEnabled(false);
+
+  try {
+    const validationError = validateNewPassword(newPasswordInput.value, confirmPasswordInput.value);
+    if (validationError) {
+      setPasswordError(validationError);
+      return;
+    }
+
+    await updateOwnPassword(newPasswordInput.value);
+    await markPasswordChanged();
+    newPasswordInput.value = "";
+    confirmPasswordInput.value = "";
+    state.mustChangePassword = false;
+    renderAdminView();
+    await refreshItemsFromDatabase();
+  } catch (error) {
+    setPasswordError(error.message || "Nao foi possivel alterar a senha.");
+  } finally {
+    setPasswordButtonsEnabled(true);
+  }
+}
+
+function validateNewPassword(password, confirmation) {
+  if (!password) return "Informe a nova senha.";
+  if (password.length < 6) return "A nova senha deve ter pelo menos 6 caracteres.";
+  if (password !== confirmation) return "As senhas informadas nao conferem.";
+  return "";
 }
 
 async function handleLogout() {
@@ -150,6 +201,7 @@ async function handleLogout() {
     console.error(error);
   } finally {
     state.session = null;
+    state.mustChangePassword = false;
     saveSession(null);
     state.items = [];
     saveItems();
@@ -174,6 +226,7 @@ function getSessionUserLabel() {
 
 function renderLoginView() {
   authView.classList.remove("hidden");
+  passwordView.classList.add("hidden");
   topbar.classList.add("hidden");
   dashboard.classList.add("hidden");
   publicView.classList.add("hidden");
@@ -181,13 +234,35 @@ function renderLoginView() {
   emailInput.focus();
 }
 
+function renderPasswordChangeView() {
+  authView.classList.add("hidden");
+  passwordView.classList.remove("hidden");
+  topbar.classList.add("hidden");
+  dashboard.classList.add("hidden");
+  publicView.classList.add("hidden");
+  historyPanel.classList.add("hidden");
+  newPasswordInput.focus();
+}
+
 function renderAdminView() {
   authView.classList.add("hidden");
+  passwordView.classList.add("hidden");
   topbar.classList.remove("hidden");
   dashboard.classList.remove("hidden");
   publicView.classList.add("hidden");
   sessionUser.textContent = getSessionUserLabel();
   renderItems();
+}
+
+function setPasswordError(message) {
+  passwordError.textContent = message;
+  passwordError.classList.toggle("hidden", !message);
+}
+
+function setPasswordButtonsEnabled(enabled) {
+  passwordForm.querySelectorAll("button").forEach((button) => {
+    button.disabled = !enabled;
+  });
 }
 
 async function handleSubmit(event) {
@@ -654,6 +729,7 @@ async function renderPublicView() {
   dashboard.classList.add("hidden");
   topbar.classList.add("hidden");
   authView.classList.add("hidden");
+  passwordView.classList.add("hidden");
   historyPanel.classList.add("hidden");
   publicView.classList.remove("hidden");
 
@@ -886,6 +962,59 @@ async function getItemFromDatabase(id) {
     console.error(error);
     return null;
   }
+}
+
+async function getMustChangePassword() {
+  const profile = await getOrCreateUserProfile();
+  state.mustChangePassword = Boolean(profile?.deve_trocar_senha);
+  return state.mustChangePassword;
+}
+
+async function getOrCreateUserProfile() {
+  const userId = state.session?.user?.id;
+  const email = state.session?.user?.email || "";
+
+  if (!userId) {
+    throw new Error("Sessao sem usuario valido.");
+  }
+
+  const rows = await supabaseRequest(`${SUPABASE_PROFILE_TABLE}?usuario_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`);
+  if (rows[0]) return rows[0];
+
+  const createdRows = await supabaseRequest(`${SUPABASE_PROFILE_TABLE}?select=*`, {
+    method: "POST",
+    body: JSON.stringify({
+      usuario_id: userId,
+      email,
+      deve_trocar_senha: true,
+    }),
+    headers: {
+      Prefer: "return=representation",
+    },
+  });
+
+  return createdRows[0];
+}
+
+async function updateOwnPassword(password) {
+  await supabaseAuthRequest("user", {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${await getValidAccessToken()}`,
+    },
+    body: JSON.stringify({ password }),
+  });
+}
+
+async function markPasswordChanged() {
+  const userId = state.session?.user?.id;
+  await supabaseRequest(`${SUPABASE_PROFILE_TABLE}?usuario_id=eq.${encodeURIComponent(userId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      deve_trocar_senha: false,
+      atualizado_em: new Date().toISOString(),
+    }),
+  });
 }
 
 async function signInWithPassword(email, password) {
