@@ -102,24 +102,40 @@ async function render() {
 async function handleLogin(event) {
   event.preventDefault();
   const action = event.submitter?.value || "login";
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
   setAuthError("");
   setAuthSuccess("");
   setAuthButtonsEnabled(false);
 
   try {
+    const validationError = validateAuthFields(email, password);
+    if (validationError) {
+      setAuthError(validationError);
+      return;
+    }
+
     if (action === "signup") {
-      await signUpWithPassword(emailInput.value.trim(), passwordInput.value);
+      await signUpWithPassword(email, password);
       passwordInput.value = "";
       setAuthSuccess("Usuário criado. Agora entre com o e-mail e a senha cadastrados.");
       return;
     }
 
-    await completeLogin(emailInput.value.trim(), passwordInput.value);
+    await completeLogin(email, password);
   } catch (error) {
     setAuthError(error.message || "Nao foi possivel entrar.");
   } finally {
     setAuthButtonsEnabled(true);
   }
+}
+
+function validateAuthFields(email, password) {
+  if (!email) return "Informe o e-mail.";
+  if (!email.includes("@")) return "Informe um e-mail válido.";
+  if (!password) return "Informe a senha.";
+  if (password.length < 6) return "A senha deve ter pelo menos 6 caracteres.";
+  return "";
 }
 
 async function completeLogin(email, password) {
