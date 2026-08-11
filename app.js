@@ -535,7 +535,7 @@ function validateRecord(record) {
     ["Nome da solução atual", record.solution],
     ["Data do preparo", record.preparation],
     ["Data de validade", record.expiration],
-    ["Codigo do preparo", record.prepCode],
+    ["Código do preparo", record.prepCode],
   ];
 
   const missingField = requiredFields.find(([, value]) => !value);

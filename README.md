@@ -8,7 +8,7 @@ Abra `index.html` no navegador ou use o GitHub Pages, cadastre os frascos e use 
 
 Os cadastros ficam salvos no Supabase. O navegador mantem uma copia local apenas como cache/backup caso a conexao falhe.
 
-Antes dos cards de edicao, a tela mostra uma tabela de controle com recipiente, setor, area, solução atual, validade, status calculado e codigo do preparo.
+Antes dos cards de edicao, a tela mostra uma tabela de controle com recipiente, setor, area, solução atual, validade, status calculado e código do preparo.
 
 O QR Code leva apenas o identificador do registro e consulta o Supabase. Assim, quando a TAG e editada, a pagina do QR mostra a validade e os dados da ultima solução preparada.
 
@@ -29,5 +29,5 @@ Quando aberto diretamente pelo arquivo local, os QR Codes tambem apontam para es
 - Nome da solução atual
 - Data do preparo
 - Data de validade
-- Codigo do preparo (logbook)
+- Código do preparo (logbook)
 - Observacoes
