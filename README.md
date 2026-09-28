@@ -20,6 +20,16 @@ O aplicativo esta preparado para ser publicado pelo GitHub Pages em:
 
 Quando aberto diretamente pelo arquivo local, os QR Codes tambem apontam para esse endereco publico.
 
+## Rodando localmente (backend de SSO)
+
+```
+npm install
+cp .env.example .env   # preencher DOCKING_SECRET_QR_CODE_PRODUCAO e SUPABASE_SERVICE_ROLE_KEY
+npm start               # sobe em http://localhost:3000, servindo os mesmos arquivos estaticos
+```
+
+O backend so adiciona o endpoint `/api/auth/sso` (handshake de SSO com o Gestao SBR) e o header de CSP `frame-ancestors`. Sem ele configurado, o app continua funcionando normalmente como pagina estatica.
+
 ## Campos
 
 - TAG Borrifador
