@@ -21,6 +21,7 @@ const state = {
   selectedItemId: "",
   restoreViewAfterPrint: null,
   session: loadSession(),
+  localSession: null,
   mustChangePassword: false,
   isAdmin: false,
 };
@@ -99,6 +100,17 @@ async function render() {
   }
 
   if (!state.session) {
+    // Sem sessao Supabase no localStorage: pode ainda existir uma sessao local
+    // (cookie httpOnly) criada pelo handshake de SSO do Gestao SBR em
+    // GET /api/auth/sso. Ver server.js para o porque essa sessao nao substitui
+    // o login Supabase para cadastro/edicao/historico.
+    state.localSession = await fetchLocalSession();
+    if (state.localSession) {
+      renderLocalSessionView();
+      await refreshItemsFromDatabase();
+      return;
+    }
+
     renderLoginView();
     return;
   }
@@ -111,6 +123,26 @@ async function render() {
   await refreshAdminState();
   renderAdminView();
   await refreshItemsFromDatabase();
+}
+
+async function fetchLocalSession() {
+  try {
+    const response = await fetch("/api/auth/session", { credentials: "same-origin" });
+    if (!response.ok) return null;
+
+    const data = await response.json().catch(() => null);
+    return data && data.email ? { email: data.email } : null;
+  } catch {
+    return null;
+  }
+}
+
+function renderLocalSessionView() {
+  // A permissao de quem chega pelo SSO da gestao ja foi decidida la
+  // (industrial.alcool.read, concedida nominalmente): tratamos como admin sem
+  // reconferir app_administradores no Supabase.
+  state.isAdmin = true;
+  renderAdminView();
 }
 
 async function handleLogin(event) {
@@ -199,11 +231,14 @@ async function handleLogout() {
           Authorization: `Bearer ${state.session.access_token}`,
         },
       });
+    } else if (state.localSession) {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
     }
   } catch (error) {
     console.error(error);
   } finally {
     state.session = null;
+    state.localSession = null;
     state.mustChangePassword = false;
     state.isAdmin = false;
     saveSession(null);
@@ -225,7 +260,7 @@ function setAuthButtonsEnabled(enabled) {
 }
 
 function getSessionUserLabel() {
-  return state.session?.user?.email || state.session?.user?.id || "";
+  return state.session?.user?.email || state.session?.user?.id || state.localSession?.email || "";
 }
 
 function renderLoginView() {
@@ -1059,6 +1094,11 @@ async function signInWithPassword(email, password) {
 
 async function getValidAccessToken() {
   if (!state.session?.access_token) {
+    if (state.localSession) {
+      throw new Error(
+        "Acesso via SSO da gestao nao inclui sessao Supabase. Entre com usuario e senha para cadastrar, editar ou ver o historico."
+      );
+    }
     throw new Error("Sessao expirada. Entre novamente.");
   }
 

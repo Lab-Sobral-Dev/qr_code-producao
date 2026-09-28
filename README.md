@@ -24,11 +24,13 @@ Quando aberto diretamente pelo arquivo local, os QR Codes tambem apontam para es
 
 ```
 npm install
-cp .env.example .env   # preencher DOCKING_SECRET_QR_CODE_PRODUCAO e SUPABASE_SERVICE_ROLE_KEY
+cp .env.example .env   # preencher DOCKING_SECRET_QR_CODE_PRODUCAO e SESSION_SECRET
 npm start               # sobe em http://localhost:3000, servindo os mesmos arquivos estaticos
 ```
 
-O backend so adiciona o endpoint `/api/auth/sso` (handshake de SSO com o Gestao SBR) e o header de CSP `frame-ancestors`. Sem ele configurado, o app continua funcionando normalmente como pagina estatica.
+O backend adiciona o endpoint `/api/auth/sso` (handshake de SSO com o Gestao SBR), `/api/auth/session` (confere a sessao local) e `/api/auth/logout`, alem do header de CSP `frame-ancestors`. Sem essas variaveis configuradas, o app continua funcionando normalmente como pagina estatica (so o SSO fica indisponivel).
+
+O handshake de SSO nao fala com o Supabase Auth Admin API: ele so valida o JWT assinado pelo Gestao SBR e abre uma sessao propria (cookie httpOnly assinado com `SESSION_SECRET`, valida por 8h). Essa sessao libera a casca da tela administrativa, mas **nao concede acesso direto ao Supabase**: cadastrar, editar, excluir e ver o historico continuam exigindo o login Supabase (usuario/senha) feito em `app.js`, porque as policies de RLS em `alcool_registros`/`app_administradores`/`app_perfis_usuarios` exigem um usuario `authenticated` de verdade (ver `supabase-security.sql`).
 
 ## Campos
 
