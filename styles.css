@@ -80,12 +80,6 @@ textarea {
   line-height: 1.2;
 }
 
-.page-subtitle {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
 .eyebrow {
   margin: 0 0 6px;
   color: var(--text-secondary);
