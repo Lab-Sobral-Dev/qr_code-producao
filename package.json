@@ -5,12 +5,15 @@
   "description": "Controle de borrifadores de Alcool 70% - backend minimo (arquivos estaticos + SSO com o Gestao SBR)",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev-login": "node scripts/dev-login.js",
+    "test": "node --test"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "qrcode-generator": "^2.0.4"
   }
 }

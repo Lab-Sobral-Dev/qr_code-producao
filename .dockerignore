@@ -1,0 +1,15 @@
+# Segredos e dados locais nunca entram na imagem (o .env do servidor e
+# passado em runtime; o banco vive no volume /data).
+.env
+.env.*
+!.env.example
+data/
+
+# Reconstruido dentro da imagem (npm ci) -- nao copiar o do host.
+node_modules/
+
+.git/
+.gitignore
+.dockerignore
+test/
+scripts/
