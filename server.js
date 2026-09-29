@@ -315,10 +315,19 @@ app.get("/api/auth/sso", (req, res) => {
     expiresIn: SESSION_TTL,
   });
 
+  // SameSite=None e obrigatorio: este app roda embutido num iframe cross-site
+  // dentro do Gestao SBR (dominio diferente). Cookie Lax so e enviado em
+  // navegacao de TOPO da aba inteira -- uma navegacao acontecendo dentro do
+  // iframe (como este proprio redirect) e cross-site do ponto de vista do
+  // browser, entao Lax nunca persiste aqui (achado ao vivo 2026-09-29: sessao
+  // nunca sobrevivia, app.js sempre caia na tela de login). None exige Secure,
+  // por isso o vhost SSL interno (labsobralnet-wildcard.crt) e obrigatorio,
+  // nao so cosmetico -- Secure fixo em vez de req.secure para nunca setar
+  // cookie sem a flag pelo caminho HTTP puro (porta 80) por engano.
   res.cookie(SESSION_COOKIE_NAME, sessionToken, {
     httpOnly: true,
-    secure: req.secure,
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     maxAge: SESSION_TTL_MS,
     path: "/",
   });
@@ -343,7 +352,7 @@ app.get("/api/auth/session", (req, res) => {
 });
 
 app.post("/api/auth/logout", (req, res) => {
-  res.clearCookie(SESSION_COOKIE_NAME, { path: "/" });
+  res.clearCookie(SESSION_COOKIE_NAME, { path: "/", secure: true, sameSite: "none" });
   return res.status(204).end();
 });
 
