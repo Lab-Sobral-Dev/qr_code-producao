@@ -5,19 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; connect-src 'self' https://deierwldemkevanfxrwg.supabase.co; img-src 'self' https://api.qrserver.com data:; script-src 'self'; style-src 'self'; base-uri 'self'; form-action 'self'"
+      content="default-src 'self'; connect-src 'self' https://deierwldemkevanfxrwg.supabase.co; img-src 'self' https://api.qrserver.com data:; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; base-uri 'self'; form-action 'self'"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="noindex, nofollow" />
     <title>Controle de PREPARO DE SOLUÇÕES</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <section class="topbar" id="topbar">
         <div>
-          <p class="eyebrow">Controle interno</p>
           <h1>PREPARO DE SOLUÇÕES</h1>
+          <p class="page-subtitle">Controle interno · Laboratório Sobral</p>
         </div>
         <div class="topbar-actions">
           <span class="session-user" id="sessionUser"></span>
@@ -30,57 +36,27 @@
 
       <section class="auth-view hidden" id="authView" aria-live="polite">
         <div class="login-root">
-          <div class="login-left">
-            <div class="login-left-bg"></div>
-            <div class="login-overlay"></div>
-            <div class="login-left-deco"></div>
-            <div class="login-deco-circle"></div>
-            <div class="login-deco-corner-tr"></div>
-            <div class="login-deco-corner-bl"></div>
-            <svg class="login-deco-lines" viewBox="0 0 500 700" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-              <line x1="0" y1="200" x2="200" y2="0" stroke="rgba(255,255,255,0.07)" stroke-width="1" />
-              <line x1="0" y1="350" x2="350" y2="0" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
-              <line x1="50" y1="700" x2="500" y2="250" stroke="rgba(255,255,255,0.06)" stroke-width="1" />
-              <line x1="0" y1="500" x2="500" y2="0" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
-              <circle cx="420" cy="80" r="60" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
-              <circle cx="420" cy="80" r="90" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
-              <circle cx="80" cy="620" r="80" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1" />
-              <circle cx="80" cy="620" r="120" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
-            </svg>
-            <div class="login-left-content">
-              <div class="login-left-logo" aria-hidden="true">LS</div>
-              <h1>PREPARO DE SOLUÇÕES</h1>
-              <p class="brand-sub">Laboratório Sobral</p>
-            </div>
-          </div>
+          <div class="login-card">
+            <div class="login-card-body">
+              <h2>Entre na sua conta</h2>
+              <p class="subtitle">Área restrita · Colaboradores autorizados</p>
 
-          <div class="login-right">
-            <div class="login-card">
-              <div class="login-card-header">
-                <div class="login-card-header-logo" aria-hidden="true">LS</div>
-              </div>
-              <div class="login-card-body">
-                <h2>Entre na sua conta</h2>
-                <p class="subtitle">Área restrita · Colaboradores autorizados</p>
-                <div class="card-divider"></div>
+              <form class="login-form" id="loginForm" novalidate>
+                <div class="form-group">
+                  <label class="form-label" for="emailInput">E-mail</label>
+                  <input class="form-input" id="emailInput" name="email" type="email" autocomplete="username" required />
+                </div>
 
-                <form class="login-form" id="loginForm" novalidate>
-                  <div class="form-group">
-                    <label class="form-label" for="emailInput">E-mail</label>
-                    <input class="form-input" id="emailInput" name="email" type="email" autocomplete="username" required />
-                  </div>
+                <div class="form-group">
+                  <label class="form-label" for="passwordInput">Senha</label>
+                  <input class="form-input" id="passwordInput" name="password" type="password" autocomplete="current-password" required />
+                </div>
 
-                  <div class="form-group">
-                    <label class="form-label" for="passwordInput">Senha</label>
-                    <input class="form-input" id="passwordInput" name="password" type="password" autocomplete="current-password" required />
-                  </div>
+                <p class="login-error hidden" id="authError"></p>
+                <button class="btn-submit" name="authAction" type="submit" value="login">Entrar</button>
+              </form>
 
-                  <p class="login-error hidden" id="authError"></p>
-                  <button class="btn-submit" name="authAction" type="submit" value="login">Entrar</button>
-                </form>
-
-                <p class="card-footer">Usuários e administradores são gerenciados no Supabase.</p>
-              </div>
+              <p class="card-footer">Usuários e administradores são gerenciados no Supabase.</p>
             </div>
           </div>
         </div>
@@ -130,47 +106,27 @@
 
       <section class="auth-view hidden" id="passwordView" aria-live="polite">
         <div class="login-root">
-          <div class="login-left">
-            <div class="login-left-bg"></div>
-            <div class="login-overlay"></div>
-            <div class="login-left-deco"></div>
-            <div class="login-deco-circle"></div>
-            <div class="login-deco-corner-tr"></div>
-            <div class="login-deco-corner-bl"></div>
-            <div class="login-left-content">
-              <div class="login-left-logo" aria-hidden="true">LS</div>
-              <h1>PRIMEIRO ACESSO</h1>
-              <p class="brand-sub">Defina sua senha individual</p>
-            </div>
-          </div>
+          <div class="login-card">
+            <div class="login-card-body">
+              <h2>Definir nova senha</h2>
+              <p class="subtitle">A senha padrão deve ser trocada antes de acessar o sistema</p>
 
-          <div class="login-right">
-            <div class="login-card">
-              <div class="login-card-header">
-                <div class="login-card-header-logo" aria-hidden="true">LS</div>
-              </div>
-              <div class="login-card-body">
-                <h2>Definir nova senha</h2>
-                <p class="subtitle">A senha padrão deve ser trocada antes de acessar o sistema</p>
-                <div class="card-divider"></div>
+              <form class="login-form" id="passwordForm" novalidate>
+                <div class="form-group">
+                  <label class="form-label" for="newPasswordInput">Nova senha</label>
+                  <input class="form-input" id="newPasswordInput" name="newPassword" type="password" autocomplete="new-password" required />
+                </div>
 
-                <form class="login-form" id="passwordForm" novalidate>
-                  <div class="form-group">
-                    <label class="form-label" for="newPasswordInput">Nova senha</label>
-                    <input class="form-input" id="newPasswordInput" name="newPassword" type="password" autocomplete="new-password" required />
-                  </div>
+                <div class="form-group">
+                  <label class="form-label" for="confirmPasswordInput">Confirmar nova senha</label>
+                  <input class="form-input" id="confirmPasswordInput" name="confirmPassword" type="password" autocomplete="new-password" required />
+                </div>
 
-                  <div class="form-group">
-                    <label class="form-label" for="confirmPasswordInput">Confirmar nova senha</label>
-                    <input class="form-input" id="confirmPasswordInput" name="confirmPassword" type="password" autocomplete="new-password" required />
-                  </div>
+                <p class="login-error hidden" id="passwordError"></p>
+                <button class="btn-submit" type="submit">Salvar nova senha</button>
+              </form>
 
-                  <p class="login-error hidden" id="passwordError"></p>
-                  <button class="btn-submit" type="submit">Salvar nova senha</button>
-                </form>
-
-                <p class="card-footer">Use pelo menos 6 caracteres. Esta etapa aparece apenas no primeiro acesso.</p>
-              </div>
+              <p class="card-footer">Use pelo menos 6 caracteres. Esta etapa aparece apenas no primeiro acesso.</p>
             </div>
           </div>
         </div>
@@ -287,12 +243,12 @@
       </section>
 
       <section class="panel history-panel hidden" id="historyPanel">
+        <button class="back-link" id="closeHistoryButton" type="button">&larr; Voltar</button>
         <div class="panel-heading">
           <div>
             <p class="eyebrow">Auditoria</p>
             <h2>Histórico de alterações</h2>
           </div>
-          <button class="button small ghost" id="closeHistoryButton" type="button">Fechar</button>
         </div>
         <div class="table-wrap">
           <table class="control-table history-table">
