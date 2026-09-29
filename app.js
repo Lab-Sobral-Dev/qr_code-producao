@@ -3,10 +3,7 @@ const SESSION_KEY = "alcool70-supabase-session";
 const DEFAULT_PUBLIC_BASE_URL = "https://lab-sobral-dev.github.io/qr_code-producao/";
 const SUPABASE_URL = "https://deierwldemkevanfxrwg.supabase.co";
 const SUPABASE_KEY = "sb_publishable_MjALJQJiaIt-fLg-YBLWPw_XLLcbm-5";
-const SUPABASE_TABLE = "alcool_registros";
-const SUPABASE_AUDIT_TABLE = "alcool_registros_historico";
 const SUPABASE_PROFILE_TABLE = "app_perfis_usuarios";
-const SUPABASE_PUBLIC_LOOKUP = "consultar_alcool_registro";
 const MIN_EXPIRATION_DATE = "2026-01-01";
 const MAX_EXPIRATION_DATE = "2100-12-31";
 const MAX_TEXT_LENGTH = 120;
@@ -102,8 +99,9 @@ async function render() {
   if (!state.session) {
     // Sem sessao Supabase no localStorage: pode ainda existir uma sessao local
     // (cookie httpOnly) criada pelo handshake de SSO do Gestao SBR em
-    // GET /api/auth/sso. Ver server.js para o porque essa sessao nao substitui
-    // o login Supabase para cadastro/edicao/historico.
+    // GET /api/auth/sso. As rotas de dado (/api/registros*, ver server.js)
+    // aceitam essa sessao normalmente para cadastrar/editar/excluir/ver o
+    // historico -- nao ha mais limitacao de acesso aqui.
     state.localSession = await fetchLocalSession();
     if (state.localSession) {
       renderLocalSessionView();
@@ -555,9 +553,7 @@ async function showHistory() {
   historyTableBody.innerHTML = `<tr><td colspan="5">Carregando histórico...</td></tr>`;
 
   try {
-    const rows = await supabaseRequest(
-      `${SUPABASE_AUDIT_TABLE}?select=*&order=alterado_em.desc&limit=100`
-    );
+    const rows = await chamarApiDados("/api/registros-historico");
     renderHistoryRows(rows);
   } catch (error) {
     historyTableBody.innerHTML = "";
@@ -940,7 +936,7 @@ function validateRecord(record) {
 
 async function refreshItemsFromDatabase() {
   try {
-    const rows = await supabaseRequest(`${SUPABASE_TABLE}?select=*&order=criado_em.desc`);
+    const rows = await chamarApiDados("/api/registros");
     state.items = rows.map(fromDatabaseItem);
     saveItems();
     renderItems();
@@ -951,47 +947,42 @@ async function refreshItemsFromDatabase() {
 }
 
 async function saveItemToDatabase(item) {
-  const payload = toDatabaseItem(item);
   const isUpdate = Boolean(item.id);
-  const endpoint = isUpdate ? `${SUPABASE_TABLE}?id=eq.${encodeURIComponent(item.id)}&select=*` : `${SUPABASE_TABLE}?select=*`;
-  const method = isUpdate ? "PATCH" : "POST";
-  const rows = await supabaseRequest(endpoint, {
-    method,
-    body: JSON.stringify(payload),
-    headers: {
-      Prefer: "return=representation",
-    },
-  });
-
-  if (!rows[0] && isUpdate) {
+  if (!isUpdate) {
     return createItemInDatabase(item);
   }
 
-  if (!rows[0]) {
-    throw new Error("O banco nao retornou o cadastro salvo.");
+  try {
+    const row = await chamarApiDados(`/api/registros/${encodeURIComponent(item.id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(toDatabaseItem(item)),
+    });
+    return fromDatabaseItem(row);
+  } catch (error) {
+    // Registro nao existe mais no banco (ex.: excluido por outra sessao):
+    // recria com o mesmo id, mesmo comportamento de antes.
+    if (error.status === 404) {
+      return createItemInDatabase(item);
+    }
+    throw error;
   }
-
-  return fromDatabaseItem(rows[0]);
 }
 
 async function createItemInDatabase(item) {
-  const rows = await supabaseRequest(`${SUPABASE_TABLE}?select=*`, {
+  const row = await chamarApiDados("/api/registros", {
     method: "POST",
     body: JSON.stringify(toDatabaseItem(item, true)),
-    headers: {
-      Prefer: "return=representation",
-    },
   });
 
-  if (!rows[0]) {
+  if (!row) {
     throw new Error("O banco nao retornou o cadastro criado.");
   }
 
-  return fromDatabaseItem(rows[0]);
+  return fromDatabaseItem(row);
 }
 
 async function deleteItemFromDatabase(id) {
-  await supabaseRequest(`${SUPABASE_TABLE}?id=eq.${encodeURIComponent(id)}`, {
+  await chamarApiDados(`/api/registros/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }
@@ -1000,16 +991,48 @@ async function getItemFromDatabase(id) {
   if (!id) return null;
 
   try {
-    const rows = await supabaseRequest(`rpc/${SUPABASE_PUBLIC_LOOKUP}`, {
-      method: "POST",
-      body: JSON.stringify({ registro_id: id }),
-      publicAccess: true,
+    const response = await fetch(`/api/registros/${encodeURIComponent(id)}/consulta`, {
+      credentials: "same-origin",
     });
-    return rows[0] ? fromDatabaseItem(rows[0]) : null;
+    if (!response.ok) return null;
+
+    const row = await response.json();
+    return fromDatabaseItem(row);
   } catch (error) {
     console.error(error);
     return null;
   }
+}
+
+// Ponto unico de decisao para as rotas de dado (alcool_registros): quem loga
+// direto no Supabase (state.session) manda o access_token no header
+// Authorization; quem entra via SSO da gestao (sessao local, cookie
+// httpOnly) nao manda nada alem do cookie. O backend aceita as duas (ver
+// server.js/requireDataAccess) -- alcool_registros nao mora mais no Supabase,
+// entao nao ha mais "dois caminhos" de fato, so duas formas de provar quem
+// esta pedindo.
+async function chamarApiDados(path, options = {}) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (state.session?.access_token) {
+    headers.Authorization = `Bearer ${state.session.access_token}`;
+  }
+
+  const response = await fetch(path, {
+    method: options.method || "GET",
+    credentials: "same-origin",
+    headers,
+    body: options.body,
+  });
+
+  if (!response.ok) {
+    const details = await response.json().catch(() => null);
+    const error = new Error(details?.error || `Erro HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
 }
 
 async function getMustChangePassword() {
@@ -1094,11 +1117,6 @@ async function signInWithPassword(email, password) {
 
 async function getValidAccessToken() {
   if (!state.session?.access_token) {
-    if (state.localSession) {
-      throw new Error(
-        "Acesso via SSO da gestao nao inclui sessao Supabase. Entre com usuario e senha para cadastrar, editar ou ver o historico."
-      );
-    }
     throw new Error("Sessao expirada. Entre novamente.");
   }
 

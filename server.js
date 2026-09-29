@@ -1,16 +1,15 @@
 "use strict";
 
 /**
- * Backend minimo do qr_code-producao.
+ * Backend do qr_code-producao.
  *
  * Continua servindo os arquivos estaticos originais (index.html, consulta.html,
- * app.js, consulta.js, styles.css) sem nenhuma alteracao neles. A novidade e o
- * handshake de SSO com o Gestao SBR: o Gestao SBR (produto acoplador) gera um
- * JWT curto assinado com um segredo compartilhado (DOCKING_SECRET_QR_CODE_PRODUCAO)
- * e redireciona o usuario para GET /api/auth/sso?token=<jwt>. Este servidor
- * valida o token e cria uma sessao PROPRIA (cookie httpOnly assinado, sem
- * nenhuma chamada ao Supabase Auth Admin API), depois manda o navegador direto
- * para /index.html.
+ * app.js, consulta.js, styles.css). O handshake de SSO com o Gestao SBR: o
+ * Gestao SBR (produto acoplador) gera um JWT curto assinado com um segredo
+ * compartilhado (DOCKING_SECRET_QR_CODE_PRODUCAO) e redireciona o usuario
+ * para GET /api/auth/sso?token=<jwt>. Este servidor valida o token e cria uma
+ * sessao PROPRIA (cookie httpOnly assinado, sem nenhuma chamada ao Supabase
+ * Auth Admin API), depois manda o navegador direto para /index.html.
  *
  * A permissao de quem chega aqui ja foi decidida no lado do Gestao SBR
  * (permissao industrial.alcool.read, concedida nominalmente) -- por isso este
@@ -19,17 +18,27 @@
  * SBR-KPIS, SBR_LEADS): validar o token da gestao e abrir uma sessao local,
  * sem depender de um provedor de auth externo.
  *
- * IMPORTANTE (limitacao conhecida, ver PR): a tela administrativa deste app
- * fala diretamente com o PostgREST do Supabase a partir do navegador
- * (app.js/supabaseRequest) e as policies de RLS em alcool_registros /
- * app_administradores / app_perfis_usuarios exigem `to authenticated`, ou
- * seja, um JWT real do Supabase Auth (auth.uid() populado). Um usuario
- * autenticado so por esta sessao local NAO tem esse JWT, entao listar/cadastrar
- * /editar/excluir registros e ver o historico continuam exigindo o login
- * Supabase de fato (usuario/senha) feito direto em app.js. Este endpoint apenas
- * reconhece a sessao vinda da gestao para liberar a casca da UI (ver
- * `/api/auth/session` e o trecho novo em app.js); ele nao substitui o login
- * Supabase para quem precisa gravar dados.
+ * DADOS (alcool_registros / alcool_registros_historico): moraram no Supabase
+ * ate esta versao. Como o app ainda nao tinha dado real em producao, a
+ * decisao foi tirar tambem o Supabase como BANCO DE DADOS (ja tinha saido
+ * como provedor de Auth Admin, ver historico do repo) e usar SQLite local
+ * (ver db.js), no mesmo padrao do monitor-impressoras (arquivo em
+ * DATABASE_PATH, volume Docker persistente). O login continua dual:
+ *
+ *   - Login manual (usuario/senha) continua no Supabase Auth (app.js,
+ *     state.session) -- isso NAO mudou. app_administradores/
+ *     app_perfis_usuarios tambem continuam no Supabase: sao metadado de
+ *     autorizacao amarrado a auth.users, nao dado de negocio, entao ficaram
+ *     de fora desta migracao (decisao documentada aqui e no README).
+ *   - Sessao local (SSO do Gestao SBR) continua no cookie httpOnly assinado
+ *     com SESSION_SECRET, sem tocar Supabase.
+ *
+ * As rotas /api/registros* abaixo aceitam QUALQUER uma das duas sessoes
+ * (mesma regra de autorizacao que as RLS antigas expressavam: qualquer
+ * usuario autenticado pode listar/cadastrar/editar/excluir; so o historico e
+ * restrito a administrador). Para a sessao Supabase, o token e validado
+ * contra o Supabase Auth (GET /auth/v1/user) -- nao precisa mais de
+ * service_role key nenhuma, so a chave publica ja hardcoded em app.js.
  */
 
 const path = require("path");
@@ -38,8 +47,28 @@ require("dotenv").config();
 const express = require("express");
 const jwt = require("jsonwebtoken");
 
+const db = require("./db");
+
 const PORT = process.env.PORT || 3000;
 const DOCKING_SECRET = process.env.DOCKING_SECRET_QR_CODE_PRODUCAO;
+
+// Mesma URL/chave publica (anon/publishable) ja hardcoded em app.js/
+// consulta.js. Nao sao segredo -- servem so para autenticar contra o Auth do
+// Supabase (validar o access_token de quem loga com usuario/senha e checar
+// app_administradores). Sobrescrevivel via env se o projeto Supabase mudar.
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://deierwldemkevanfxrwg.supabase.co";
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "sb_publishable_MjALJQJiaIt-fLg-YBLWPw_XLLcbm-5";
+
+// Mesmos limites usados na validacao client-side de app.js (validateRecord /
+// isAllowedExpiration). Mantidos em sincronia manualmente -- nao ha build
+// step compartilhado entre o browser script e este backend, e agora e este
+// backend (sem RLS do Supabase por tras) quem garante a forma dos dados.
+const MIN_EXPIRATION_DATE = "2026-01-01";
+const MAX_EXPIRATION_DATE = "2100-12-31";
+const MAX_TEXT_LENGTH = 120;
+const MAX_OBSERVACOES_LENGTH = 2000; // JSON serializado de area/solution/preparation/prepCode/notes
+const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Segredo dedicado a sessao local, separado do DOCKING_SECRET. O DOCKING_SECRET
 // autentica o handshake entre dois sistemas (Gestao SBR -> qr_code-producao);
@@ -72,6 +101,10 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname)));
 
+// So as rotas /api/registros* leem corpo JSON; limite baixo por serem
+// formularios pequenos.
+app.use(express.json({ limit: "100kb" }));
+
 function parseCookies(req) {
   const header = req.headers.cookie;
   if (!header) return {};
@@ -85,6 +118,165 @@ function parseCookies(req) {
     if (name) cookies[name] = decodeURIComponent(value);
     return cookies;
   }, {});
+}
+
+// Le e valida o cookie de sessao local. Reaproveitada por /api/auth/session
+// e pelo middleware requireDataAccess das rotas de dado -- unica leitura do
+// cookie, nao duplicar essa logica em cada rota.
+function readLocalSession(req) {
+  if (!SESSION_SECRET) return { ok: false, reason: "unconfigured" };
+
+  const token = parseCookies(req)[SESSION_COOKIE_NAME];
+  if (!token) return { ok: false, reason: "missing" };
+
+  try {
+    const payload = jwt.verify(token, SESSION_SECRET, { algorithms: ["HS256"] });
+    return { ok: true, email: payload.email };
+  } catch (error) {
+    return { ok: false, reason: "invalid" };
+  }
+}
+
+async function verificarTokenSupabase(accessToken) {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    if (!response.ok) return null;
+
+    const user = await response.json();
+    return user && user.id && user.email ? { id: user.id, email: user.email } : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function isSupabaseAdmin(accessToken, userId) {
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/app_administradores?usuario_id=eq.${encodeURIComponent(userId)}&ativo=eq.true&select=usuario_id&limit=1`,
+      {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    if (!response.ok) return false;
+
+    const rows = await response.json();
+    return Boolean(rows[0]);
+  } catch (error) {
+    return false;
+  }
+}
+
+// Autoriza as rotas de dado: aceita sessao local (SSO da gestao, ja tratada
+// como admin -- a permissao foi decidida no Gestao SBR) OU um access_token
+// Supabase valido (login manual, qualquer usuario autenticado -- mesma regra
+// que a policy "to authenticated using (true)" expressava antes). Preenche
+// req.actingUser para as rotas usarem no historico de auditoria.
+async function requireDataAccess(req, res, next) {
+  const localSession = readLocalSession(req);
+  if (localSession.ok) {
+    req.actingUser = { source: "sso", email: localSession.email };
+    return next();
+  }
+
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : null;
+
+  if (token) {
+    const supabaseUser = await verificarTokenSupabase(token);
+    if (supabaseUser) {
+      req.actingUser = { source: "supabase", accessToken: token, ...supabaseUser };
+      return next();
+    }
+  }
+
+  return res.status(401).json({ error: "Sem sessao valida." });
+}
+
+// So o historico e restrito a administrador (mesma regra da policy
+// "Permitir leitura autenticada historico", via usuario_app_admin()).
+async function requireAdminParaHistorico(req, res, next) {
+  if (req.actingUser.source === "sso") {
+    // Sessao local ja e tratada como admin em toda a tela (ver app.js) --
+    // a permissao industrial.alcool.read ja foi concedida nominalmente no
+    // Gestao SBR.
+    return next();
+  }
+
+  const admin = await isSupabaseAdmin(req.actingUser.accessToken, req.actingUser.id);
+  if (!admin) {
+    return res.status(403).json({ error: "Historico restrito ao administrador." });
+  }
+
+  return next();
+}
+
+function isNonEmptyString(value, maxLength) {
+  return typeof value === "string" && value.trim().length > 0 && value.length <= maxLength;
+}
+
+function isAllowedDate(value) {
+  return (
+    typeof value === "string" &&
+    DATE_ONLY_REGEX.test(value) &&
+    value >= MIN_EXPIRATION_DATE &&
+    value <= MAX_EXPIRATION_DATE
+  );
+}
+
+// Espelha os campos que app.js/toDatabaseItem produz (tag, endereco,
+// validade, responsavel, observacoes[, id]). Sem RLS do Supabase por tras,
+// esta e a validacao de forma que os dados passam a ter.
+function validateRegistroPayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    return "Corpo da requisicao invalido.";
+  }
+  if (!isNonEmptyString(payload.tag, MAX_TEXT_LENGTH)) {
+    return "Campo 'tag' invalido.";
+  }
+  if (!isNonEmptyString(payload.endereco, MAX_TEXT_LENGTH)) {
+    return "Campo 'endereco' invalido.";
+  }
+  if (!isAllowedDate(payload.validade)) {
+    return "Campo 'validade' invalido.";
+  }
+  if (
+    payload.responsavel != null &&
+    (typeof payload.responsavel !== "string" || payload.responsavel.length > MAX_TEXT_LENGTH)
+  ) {
+    return "Campo 'responsavel' invalido.";
+  }
+  if (typeof payload.observacoes !== "string" || payload.observacoes.length > MAX_OBSERVACOES_LENGTH) {
+    return "Campo 'observacoes' invalido.";
+  }
+  if (payload.id != null && (typeof payload.id !== "string" || !UUID_REGEX.test(payload.id))) {
+    return "Campo 'id' invalido.";
+  }
+  return null;
+}
+
+// So repassa os campos conhecidos para o banco -- nunca o payload cru.
+function sanitizeRegistroPayload(payload, { includeId = false } = {}) {
+  const clean = {
+    tag: payload.tag.trim(),
+    endereco: payload.endereco.trim(),
+    validade: payload.validade,
+    responsavel: payload.responsavel ? payload.responsavel.trim() : null,
+    observacoes: payload.observacoes,
+  };
+
+  if (includeId && payload.id) {
+    clean.id = payload.id;
+  }
+
+  return clean;
 }
 
 app.get("/api/auth/sso", (req, res) => {
@@ -141,17 +333,13 @@ app.get("/api/auth/session", (req, res) => {
     return res.status(503).json({ error: "Sessao local nao configurada neste ambiente." });
   }
 
-  const token = parseCookies(req)[SESSION_COOKIE_NAME];
-  if (!token) {
-    return res.status(401).json({ error: "Sem sessao." });
+  const session = readLocalSession(req);
+  if (!session.ok) {
+    const message = session.reason === "missing" ? "Sem sessao." : "Sessao invalida ou expirada.";
+    return res.status(401).json({ error: message });
   }
 
-  try {
-    const payload = jwt.verify(token, SESSION_SECRET, { algorithms: ["HS256"] });
-    return res.json({ email: payload.email });
-  } catch (error) {
-    return res.status(401).json({ error: "Sessao invalida ou expirada." });
-  }
+  return res.json({ email: session.email });
 });
 
 app.post("/api/auth/logout", (req, res) => {
@@ -159,6 +347,86 @@ app.post("/api/auth/logout", (req, res) => {
   return res.status(204).end();
 });
 
+// --- Dados (alcool_registros) -------------------------------------------
+// Ver comentario no topo do arquivo. Cada rota (exceto a consulta publica)
+// exige uma das duas sessoes e grava quem alterou no historico de auditoria.
+
+app.get("/api/registros", requireDataAccess, (req, res) => {
+  return res.json(db.listarRegistros());
+});
+
+app.post("/api/registros", requireDataAccess, (req, res) => {
+  const validationError = validateRegistroPayload(req.body);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
+  }
+
+  const payload = sanitizeRegistroPayload(req.body, { includeId: true });
+  const registro = db.criarRegistro(payload, req.actingUser);
+  return res.status(201).json(registro);
+});
+
+app.patch("/api/registros/:id", requireDataAccess, (req, res) => {
+  if (!UUID_REGEX.test(req.params.id)) {
+    return res.status(400).json({ error: "Identificador invalido." });
+  }
+
+  const validationError = validateRegistroPayload(req.body);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
+  }
+
+  const payload = sanitizeRegistroPayload(req.body);
+  const registro = db.atualizarRegistro(req.params.id, payload, req.actingUser);
+  if (!registro) {
+    return res.status(404).json({ error: "Registro nao encontrado." });
+  }
+
+  return res.json(registro);
+});
+
+app.delete("/api/registros/:id", requireDataAccess, (req, res) => {
+  if (!UUID_REGEX.test(req.params.id)) {
+    return res.status(400).json({ error: "Identificador invalido." });
+  }
+
+  const removido = db.excluirRegistro(req.params.id, req.actingUser);
+  if (!removido) {
+    return res.status(404).json({ error: "Registro nao encontrado." });
+  }
+
+  return res.status(204).end();
+});
+
+app.get("/api/registros-historico", requireDataAccess, requireAdminParaHistorico, (req, res) => {
+  return res.json(db.listarHistorico(100));
+});
+
+// Consulta publica por QR Code: sem autenticacao, mesmo espirito da RPC
+// anonima que existia no Supabase (consultar_alcool_registro). So devolve o
+// registro em si, nunca historico nem dado de outro usuario.
+app.get("/api/registros/:id/consulta", (req, res) => {
+  if (!UUID_REGEX.test(req.params.id)) {
+    return res.status(404).json({ error: "Registro nao encontrado." });
+  }
+
+  const registro = db.buscarRegistro(req.params.id);
+  if (!registro) {
+    return res.status(404).json({ error: "Registro nao encontrado." });
+  }
+
+  return res.json(registro);
+});
+
+// Handler generico de erro: nunca deixa detalhe de implementacao vazar pro
+// cliente.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error("[erro]", err);
+  if (res.headersSent) return next(err);
+  return res.status(500).json({ error: "Erro interno." });
+});
+
 app.listen(PORT, () => {
-  console.log(`qr_code-producao backend ouvindo na porta ${PORT}`);
+  console.log(`qr_code-producao backend ouvindo na porta ${PORT} (banco: ${db.DATABASE_PATH})`);
 });
