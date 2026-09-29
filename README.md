@@ -10,7 +10,7 @@ Os cadastros ficam salvos num banco SQLite local (arquivo `DATABASE_PATH`, ver D
 
 Antes dos cards de edicao, a tela mostra uma tabela de controle com recipiente, setor, area, solução atual, validade, status calculado e código do preparo.
 
-O QR Code leva apenas o identificador do registro e consulta o backend (`GET /api/registros/:id/consulta`, sem autenticacao). Assim, quando a TAG e editada, a pagina do QR mostra a validade e os dados da ultima solução preparada.
+O QR Code leva apenas o identificador do registro e consulta o backend (`GET /api/registros/:id/consulta`, sem autenticacao). Assim, quando a TAG e editada, a pagina do QR mostra a validade e os dados da ultima solução preparada. A imagem do QR e gerada no proprio navegador (`qrcode-generator`, servido em `/vendor/qrcode.js`), sem servico externo.
 
 ## Publicacao
 
@@ -22,21 +22,26 @@ Este app roda como servico Docker (`Dockerfile`), tipicamente atras do mesmo hos
 npm install
 cp .env.example .env   # preencher DOCKING_SECRET_QR_CODE_PRODUCAO e SESSION_SECRET
 npm start               # sobe em http://localhost:3000
+npm run dev-login       # imprime a URL de SSO para entrar localmente (ver abaixo)
+npm test                # testes ponta a ponta do backend (sobe o server.js com banco temporario)
 ```
 
-O backend adiciona:
+**Windows:** `better-sqlite3@13` nao publica binario pronto para Windows e compila via `node-gyp`, o que exige o Visual Studio Build Tools ("Desktop development with C++"). Sem ele, o `npm install` falha. Contorno so para desenvolvimento local, sem alterar `package.json`/lock: `npm install --no-save better-sqlite3@12` (tem binario pronto e a mesma API). A imagem Docker continua compilando a v13.
 
-- `/api/auth/sso` (handshake de SSO com o Gestao SBR), `/api/auth/session` (confere a sessao local) e `/api/auth/logout`, alem do header de CSP `frame-ancestors`.
-- `/api/registros` (GET lista, POST cria), `/api/registros/:id` (PATCH edita, DELETE exclui), `/api/registros-historico` (GET, restrito a administrador) e `/api/registros/:id/consulta` (GET publico, usado pelo QR Code) -- todos batendo no SQLite local (`db.js`), nunca no Supabase.
+O backend serve **so** os arquivos do front, por lista explicita (`ARQUIVOS_PUBLICOS` em `server.js`): `index.html`, `consulta.html`, `app.js`, `consulta.js`, `styles.css` e `vendor/qrcode.js`. Arquivo novo do front precisa entrar nessa lista. Alem disso:
 
-**Login continua dual**, sem mudanca nesta parte:
+- `/api/auth/sso` (handshake de SSO com o Gestao SBR) e `/api/auth/session` (confere a sessao local), alem do header de CSP `frame-ancestors`.
+- `/api/registros` (GET lista, POST cria), `/api/registros/:id` (PATCH edita, DELETE exclui), `/api/registros-historico` (GET) e `/api/registros/:id/consulta` (GET publico, usado pelo QR Code) -- todos batendo no SQLite local (`db.js`).
 
-- Login manual (usuario/senha, `app.js`/`state.session`) continua no Supabase Auth. `app_administradores`/`app_perfis_usuarios` tambem continuam no Supabase (RLS de verdade, ver `supabase-security.sql`): sao metadado de autorizacao amarrado a `auth.users`, nao dado de negocio, entao ficaram fora da migracao para SQLite.
-- Sessao local (SSO do Gestao SBR) continua no cookie httpOnly assinado com `SESSION_SECRET`.
+## Acesso (sem login proprio)
 
-**As rotas de dado aceitam as duas sessoes** (mesma regra que as RLS antigas expressavam: qualquer usuario autenticado pode listar/cadastrar/editar/excluir; so o historico e restrito a administrador). Para quem loga manual, o backend valida o `access_token` direto contra o Supabase Auth (`GET /auth/v1/user`) e, para o historico, confere `app_administradores` -- sem nenhuma `service_role key`, so a chave publica (anon/publishable) ja hardcoded em `app.js`.
+O app roda embutido no Gestao SBR (`/industrial/qr-code-alcool`) e **nao tem tela de login**. A unica forma de acesso a tela administrativa e o SSO: o Gestao SBR gera um JWT curto assinado com `DOCKING_SECRET_QR_CODE_PRODUCAO` e redireciona para `/api/auth/sso?token=...`, que cria uma sessao local (cookie httpOnly assinado com `SESSION_SECRET`, validade de 8h). A permissao ja foi decidida no Gestao SBR, entao quem chega por ali pode listar, cadastrar, editar, excluir e ver o historico.
 
-O historico de auditoria (`alcool_registros_historico`) agora e gravado pelo proprio backend a cada INSERT/UPDATE/DELETE, capturando `usuario_email` tanto para quem loga manual quanto para quem entra via SSO -- antes, alteracoes via SSO ficavam com esse campo nulo porque a service_role key (removida) nao carregava contexto de autenticacao do Supabase.
+Quem abre o app fora do Gestao SBR, ou com a sessao expirada, ve apenas a mensagem "Acesse pelo Gestao SBR". A consulta publica do QR Code continua sem autenticacao.
+
+Para testar localmente sem o Gestao SBR, rode `npm run dev-login [email]`: o script gera um token de SSO assinado com o `DOCKING_SECRET_QR_CODE_PRODUCAO` do seu `.env` e imprime a URL de handshake. Abra essa URL no navegador (vale por 5 minutos) e voce cai direto na tela administrativa.
+
+O historico de auditoria (`alcool_registros_historico`) e gravado pelo proprio backend a cada INSERT/UPDATE/DELETE, com o `usuario_email` vindo da sessao do SSO.
 
 ## Campos
 

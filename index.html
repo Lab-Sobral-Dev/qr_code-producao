@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; connect-src 'self' https://deierwldemkevanfxrwg.supabase.co; img-src 'self' https://api.qrserver.com data:; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; base-uri 'self'; form-action 'self'"
+      content="default-src 'self'; connect-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; base-uri 'self'; form-action 'self'"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="robots" content="noindex, nofollow" />
@@ -20,7 +20,7 @@
   </head>
   <body>
     <main class="app-shell">
-      <section class="topbar" id="topbar">
+      <section class="topbar hidden" id="topbar">
         <div>
           <h1>PREPARO DE SOLUÇÕES</h1>
         </div>
@@ -28,34 +28,17 @@
           <span class="session-user" id="sessionUser"></span>
           <button class="button ghost" id="historyButton" type="button">Histórico</button>
           <button class="button ghost" id="printAllButton" type="button">Imprimir todos QR</button>
-          <button class="button primary" id="newButton" type="button">NOVO FRASCO</button>
-          <button class="button ghost" id="logoutButton" type="button">Sair</button>
-        </div>
+          <button class="button primary" id="newButton" type="button">NOVO FRASCO</button>        </div>
       </section>
 
       <section class="auth-view hidden" id="authView" aria-live="polite">
         <div class="login-root">
           <div class="login-card">
             <div class="login-card-body">
-              <h2>Entre na sua conta</h2>
-              <p class="subtitle">Área restrita · Colaboradores autorizados</p>
+              <h2>Acesse pelo Gestão SBR</h2>
+              <p class="subtitle">Este sistema é aberto a partir do Gestão SBR. Entre por lá para continuar.</p>
 
-              <form class="login-form" id="loginForm" novalidate>
-                <div class="form-group">
-                  <label class="form-label" for="emailInput">E-mail</label>
-                  <input class="form-input" id="emailInput" name="email" type="email" autocomplete="username" required />
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label" for="passwordInput">Senha</label>
-                  <input class="form-input" id="passwordInput" name="password" type="password" autocomplete="current-password" required />
-                </div>
-
-                <p class="login-error hidden" id="authError"></p>
-                <button class="btn-submit" name="authAction" type="submit" value="login">Entrar</button>
-              </form>
-
-              <p class="card-footer">Usuários e administradores são gerenciados no Supabase.</p>
+              <p class="card-footer">Se você já estava usando o sistema, sua sessão pode ter expirado. Abra-o novamente pelo Gestão SBR.</p>
             </div>
           </div>
         </div>
@@ -103,35 +86,7 @@
         </div>
       </section>
 
-      <section class="auth-view hidden" id="passwordView" aria-live="polite">
-        <div class="login-root">
-          <div class="login-card">
-            <div class="login-card-body">
-              <h2>Definir nova senha</h2>
-              <p class="subtitle">A senha padrão deve ser trocada antes de acessar o sistema</p>
-
-              <form class="login-form" id="passwordForm" novalidate>
-                <div class="form-group">
-                  <label class="form-label" for="newPasswordInput">Nova senha</label>
-                  <input class="form-input" id="newPasswordInput" name="newPassword" type="password" autocomplete="new-password" required />
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label" for="confirmPasswordInput">Confirmar nova senha</label>
-                  <input class="form-input" id="confirmPasswordInput" name="confirmPassword" type="password" autocomplete="new-password" required />
-                </div>
-
-                <p class="login-error hidden" id="passwordError"></p>
-                <button class="btn-submit" type="submit">Salvar nova senha</button>
-              </form>
-
-              <p class="card-footer">Use pelo menos 6 caracteres. Esta etapa aparece apenas no primeiro acesso.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="dashboard" id="dashboard">
+      <section class="dashboard hidden" id="dashboard">
         <form class="panel form-panel" id="itemForm">
           <input id="itemId" type="hidden" />
           <div class="panel-heading">
@@ -306,6 +261,7 @@
       </article>
     </template>
 
-    <script src="app.js?v=6244155-table-title"></script>
+    <script src="vendor/qrcode.js"></script>
+    <script src="app.js?v=sso-only-qr-local"></script>
   </body>
 </html>

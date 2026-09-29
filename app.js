@@ -1,9 +1,5 @@
 const STORAGE_KEY = "alcool70-registros";
-const SESSION_KEY = "alcool70-supabase-session";
 const DEFAULT_PUBLIC_BASE_URL = "https://lab-sobral-dev.github.io/qr_code-producao/";
-const SUPABASE_URL = "https://deierwldemkevanfxrwg.supabase.co";
-const SUPABASE_KEY = "sb_publishable_MjALJQJiaIt-fLg-YBLWPw_XLLcbm-5";
-const SUPABASE_PROFILE_TABLE = "app_perfis_usuarios";
 const MIN_EXPIRATION_DATE = "2026-01-01";
 const MAX_EXPIRATION_DATE = "2100-12-31";
 const MAX_TEXT_LENGTH = 120;
@@ -17,22 +13,12 @@ const state = {
   selectedSector: "",
   selectedItemId: "",
   restoreViewAfterPrint: null,
-  session: loadSession(),
-  localSession: null,
-  mustChangePassword: false,
-  isAdmin: false,
+  // Sessao local criada pelo handshake de SSO do Gestao SBR ({ email }).
+  // Unica forma de acesso a tela administrativa -- nao ha login proprio.
+  session: null,
 };
 
 const authView = document.querySelector("#authView");
-const loginForm = document.querySelector("#loginForm");
-const emailInput = document.querySelector("#emailInput");
-const passwordInput = document.querySelector("#passwordInput");
-const authError = document.querySelector("#authError");
-const passwordView = document.querySelector("#passwordView");
-const passwordForm = document.querySelector("#passwordForm");
-const newPasswordInput = document.querySelector("#newPasswordInput");
-const confirmPasswordInput = document.querySelector("#confirmPasswordInput");
-const passwordError = document.querySelector("#passwordError");
 const form = document.querySelector("#itemForm");
 const itemId = document.querySelector("#itemId");
 const tagInput = document.querySelector("#tagInput");
@@ -50,7 +36,6 @@ const clearButton = document.querySelector("#clearButton");
 const newButton = document.querySelector("#newButton");
 const printAllButton = document.querySelector("#printAllButton");
 const historyButton = document.querySelector("#historyButton");
-const logoutButton = document.querySelector("#logoutButton");
 const closeHistoryButton = document.querySelector("#closeHistoryButton");
 const sessionUser = document.querySelector("#sessionUser");
 const searchInput = document.querySelector("#searchInput");
@@ -69,15 +54,12 @@ const publicView = document.querySelector("#publicView");
 const historyPanel = document.querySelector("#historyPanel");
 const historyTableBody = document.querySelector("#historyTableBody");
 
-loginForm.addEventListener("submit", handleLogin);
-passwordForm.addEventListener("submit", handlePasswordChange);
 form.addEventListener("submit", handleSubmit);
 deleteButton.addEventListener("click", handleDelete);
 clearButton.addEventListener("click", resetForm);
 newButton.addEventListener("click", resetForm);
 printAllButton.addEventListener("click", printAllItems);
 historyButton.addEventListener("click", showHistory);
-logoutButton.addEventListener("click", handleLogout);
 closeHistoryButton.addEventListener("click", hideHistory);
 backListButton.addEventListener("click", navigateBack);
 searchInput.addEventListener("input", (event) => {
@@ -96,34 +78,21 @@ async function render() {
     return;
   }
 
+  // Nao ha login proprio: a tela administrativa so abre com a sessao local
+  // (cookie httpOnly) criada pelo handshake de SSO do Gestao SBR em
+  // GET /api/auth/sso. A permissao de quem chega por ali ja foi decidida no
+  // Gestao SBR (industrial.alcool.read, concedida nominalmente).
+  state.session = await fetchSession();
   if (!state.session) {
-    // Sem sessao Supabase no localStorage: pode ainda existir uma sessao local
-    // (cookie httpOnly) criada pelo handshake de SSO do Gestao SBR em
-    // GET /api/auth/sso. As rotas de dado (/api/registros*, ver server.js)
-    // aceitam essa sessao normalmente para cadastrar/editar/excluir/ver o
-    // historico -- nao ha mais limitacao de acesso aqui.
-    state.localSession = await fetchLocalSession();
-    if (state.localSession) {
-      renderLocalSessionView();
-      await refreshItemsFromDatabase();
-      return;
-    }
-
-    renderLoginView();
+    renderNoAccessView();
     return;
   }
 
-  if (await getMustChangePassword()) {
-    renderPasswordChangeView();
-    return;
-  }
-
-  await refreshAdminState();
   renderAdminView();
   await refreshItemsFromDatabase();
 }
 
-async function fetchLocalSession() {
+async function fetchSession() {
   try {
     const response = await fetch("/api/auth/session", { credentials: "same-origin" });
     if (!response.ok) return null;
@@ -135,175 +104,22 @@ async function fetchLocalSession() {
   }
 }
 
-function renderLocalSessionView() {
-  // A permissao de quem chega pelo SSO da gestao ja foi decidida la
-  // (industrial.alcool.read, concedida nominalmente): tratamos como admin sem
-  // reconferir app_administradores no Supabase.
-  state.isAdmin = true;
-  renderAdminView();
-}
-
-async function handleLogin(event) {
-  event.preventDefault();
-  const email = emailInput.value.trim();
-  const password = passwordInput.value;
-  setAuthError("");
-  setAuthButtonsEnabled(false);
-
-  try {
-    const validationError = validateAuthFields(email, password);
-    if (validationError) {
-      setAuthError(validationError);
-      return;
-    }
-
-    await completeLogin(email, password);
-  } catch (error) {
-    setAuthError(error.message || "Nao foi possivel entrar.");
-  } finally {
-    setAuthButtonsEnabled(true);
-  }
-}
-
-function validateAuthFields(email, password) {
-  if (!email) return "Informe o e-mail.";
-  if (!email.includes("@")) return "Informe um e-mail válido.";
-  if (!password) return "Informe a senha.";
-  if (password.length < 6) return "A senha deve ter pelo menos 6 caracteres.";
-  return "";
-}
-
-async function completeLogin(email, password) {
-  state.session = await signInWithPassword(email, password);
-  saveSession(state.session);
-  passwordInput.value = "";
-  await refreshAdminState();
-  if (await getMustChangePassword()) {
-    renderPasswordChangeView();
-    return;
-  }
-
-  renderAdminView();
-  await refreshItemsFromDatabase();
-}
-
-async function handlePasswordChange(event) {
-  event.preventDefault();
-  setPasswordError("");
-  setPasswordButtonsEnabled(false);
-
-  try {
-    const validationError = validateNewPassword(newPasswordInput.value, confirmPasswordInput.value);
-    if (validationError) {
-      setPasswordError(validationError);
-      return;
-    }
-
-    await updateOwnPassword(newPasswordInput.value);
-    await markPasswordChanged();
-    newPasswordInput.value = "";
-    confirmPasswordInput.value = "";
-    state.mustChangePassword = false;
-    renderAdminView();
-    await refreshItemsFromDatabase();
-  } catch (error) {
-    setPasswordError(error.message || "Nao foi possivel alterar a senha.");
-  } finally {
-    setPasswordButtonsEnabled(true);
-  }
-}
-
-function validateNewPassword(password, confirmation) {
-  if (!password) return "Informe a nova senha.";
-  if (password.length < 6) return "A nova senha deve ter pelo menos 6 caracteres.";
-  if (password !== confirmation) return "As senhas informadas nao conferem.";
-  return "";
-}
-
-async function handleLogout() {
-  try {
-    if (state.session?.access_token) {
-      await supabaseAuthRequest("logout", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${state.session.access_token}`,
-        },
-      });
-    } else if (state.localSession) {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
-    }
-  } catch (error) {
-    console.error(error);
-  } finally {
-    state.session = null;
-    state.localSession = null;
-    state.mustChangePassword = false;
-    state.isAdmin = false;
-    saveSession(null);
-    state.items = [];
-    saveItems();
-    renderLoginView();
-  }
-}
-
-function setAuthError(message) {
-  authError.textContent = message;
-  authError.classList.toggle("hidden", !message);
-}
-
-function setAuthButtonsEnabled(enabled) {
-  loginForm.querySelectorAll("button").forEach((button) => {
-    button.disabled = !enabled;
-  });
-}
-
-function getSessionUserLabel() {
-  return state.session?.user?.email || state.session?.user?.id || state.localSession?.email || "";
-}
-
-function renderLoginView() {
+function renderNoAccessView() {
   authView.classList.remove("hidden");
-  passwordView.classList.add("hidden");
   topbar.classList.add("hidden");
   dashboard.classList.add("hidden");
   publicView.classList.add("hidden");
   historyPanel.classList.add("hidden");
-  emailInput.focus();
-}
-
-function renderPasswordChangeView() {
-  authView.classList.add("hidden");
-  passwordView.classList.remove("hidden");
-  topbar.classList.add("hidden");
-  dashboard.classList.add("hidden");
-  publicView.classList.add("hidden");
-  historyPanel.classList.add("hidden");
-  newPasswordInput.focus();
 }
 
 function renderAdminView() {
   authView.classList.add("hidden");
-  passwordView.classList.add("hidden");
   topbar.classList.remove("hidden");
   dashboard.classList.remove("hidden");
   publicView.classList.add("hidden");
-  sessionUser.textContent = state.isAdmin ? getSessionUserLabel() : "";
-  sessionUser.classList.toggle("hidden", !state.isAdmin);
-  historyButton.classList.toggle("hidden", !state.isAdmin);
-  newButton.classList.toggle("hidden", !state.isAdmin);
+  sessionUser.textContent = state.session?.email || "";
   historyPanel.classList.add("hidden");
   renderItems();
-}
-
-function setPasswordError(message) {
-  passwordError.textContent = message;
-  passwordError.classList.toggle("hidden", !message);
-}
-
-function setPasswordButtonsEnabled(enabled) {
-  passwordForm.querySelectorAll("button").forEach((button) => {
-    button.disabled = !enabled;
-  });
 }
 
 async function handleSubmit(event) {
@@ -544,11 +360,6 @@ function renderControlTable(items) {
 }
 
 async function showHistory() {
-  if (!state.isAdmin && !(await refreshAdminState())) {
-    historyPanel.classList.add("hidden");
-    return;
-  }
-
   historyPanel.classList.remove("hidden");
   historyTableBody.innerHTML = `<tr><td colspan="5">Carregando histórico...</td></tr>`;
 
@@ -773,7 +584,6 @@ async function renderPublicView() {
   dashboard.classList.add("hidden");
   topbar.classList.add("hidden");
   authView.classList.add("hidden");
-  passwordView.classList.add("hidden");
   historyPanel.classList.add("hidden");
   publicView.classList.remove("hidden");
 
@@ -843,9 +653,15 @@ function getPublicUrl(id) {
   return url.toString();
 }
 
+// Gera o QR Code no proprio navegador (vendor/qrcode.js, qrcode-generator)
+// como data URL -- o link de consulta nao sai para servico externo e a
+// impressao funciona sem internet.
 function getQrCodeUrl(value) {
-  const encodedValue = encodeURIComponent(value);
-  return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodedValue}`;
+  const qr = qrcode(0, "M");
+  qr.addData(value);
+  qr.make();
+  const cellSize = Math.max(2, Math.floor(180 / (qr.getModuleCount() + 8)));
+  return qr.createDataURL(cellSize, cellSize * 4);
 }
 
 function formatDate(dateValue) {
@@ -867,33 +683,6 @@ function loadItems() {
   } catch {
     return [];
   }
-}
-
-function loadSession() {
-  try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY));
-  } catch {
-    return null;
-  }
-}
-
-function saveSession(session) {
-  if (!session) {
-    localStorage.removeItem(SESSION_KEY);
-    return;
-  }
-
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-}
-
-function normalizeSession(session) {
-  const expiresAt = session.expires_at || Math.floor(Date.now() / 1000) + (session.expires_in || 3600);
-  return {
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
-    expires_at: expiresAt,
-    user: session.user || null,
-  };
 }
 
 function saveItems() {
@@ -1004,18 +793,10 @@ async function getItemFromDatabase(id) {
   }
 }
 
-// Ponto unico de decisao para as rotas de dado (alcool_registros): quem loga
-// direto no Supabase (state.session) manda o access_token no header
-// Authorization; quem entra via SSO da gestao (sessao local, cookie
-// httpOnly) nao manda nada alem do cookie. O backend aceita as duas (ver
-// server.js/requireDataAccess) -- alcool_registros nao mora mais no Supabase,
-// entao nao ha mais "dois caminhos" de fato, so duas formas de provar quem
-// esta pedindo.
+// Ponto unico de chamada as rotas de dado (alcool_registros). A autenticacao
+// vai so no cookie httpOnly da sessao do SSO (ver server.js/requireDataAccess).
 async function chamarApiDados(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
-  if (state.session?.access_token) {
-    headers.Authorization = `Bearer ${state.session.access_token}`;
-  }
 
   const response = await fetch(path, {
     method: options.method || "GET",
@@ -1024,164 +805,18 @@ async function chamarApiDados(path, options = {}) {
     body: options.body,
   });
 
+  // Sessao do SSO expirou (TTL de 8h) com a tela aberta: orienta a reabrir
+  // pelo Gestao SBR em vez de deixar a tela quebrada.
+  if (response.status === 401 && state.session) {
+    state.session = null;
+    renderNoAccessView();
+  }
+
   if (!response.ok) {
     const details = await response.json().catch(() => null);
     const error = new Error(details?.error || `Erro HTTP ${response.status}`);
     error.status = response.status;
     throw error;
-  }
-
-  if (response.status === 204) return null;
-  return response.json();
-}
-
-async function getMustChangePassword() {
-  const profile = await getOrCreateUserProfile();
-  state.mustChangePassword = Boolean(profile?.deve_trocar_senha);
-  return state.mustChangePassword;
-}
-
-async function getOrCreateUserProfile() {
-  const userId = state.session?.user?.id;
-  const email = state.session?.user?.email || "";
-
-  if (!userId) {
-    throw new Error("Sessao sem usuario valido.");
-  }
-
-  const rows = await supabaseRequest(`${SUPABASE_PROFILE_TABLE}?usuario_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`);
-  if (rows[0]) return rows[0];
-
-  const createdRows = await supabaseRequest(`${SUPABASE_PROFILE_TABLE}?select=*`, {
-    method: "POST",
-    body: JSON.stringify({
-      usuario_id: userId,
-      email,
-      deve_trocar_senha: true,
-    }),
-    headers: {
-      Prefer: "return=representation",
-    },
-  });
-
-  return createdRows[0];
-}
-
-async function updateOwnPassword(password) {
-  await supabaseAuthRequest("user", {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${await getValidAccessToken()}`,
-    },
-    body: JSON.stringify({ password }),
-  });
-}
-
-async function markPasswordChanged() {
-  const userId = state.session?.user?.id;
-  await supabaseRequest(`${SUPABASE_PROFILE_TABLE}?usuario_id=eq.${encodeURIComponent(userId)}`, {
-    method: "PATCH",
-    body: JSON.stringify({
-      deve_trocar_senha: false,
-      atualizado_em: new Date().toISOString(),
-    }),
-  });
-}
-
-async function refreshAdminState() {
-  const userId = state.session?.user?.id;
-
-  if (!userId) {
-    state.isAdmin = false;
-    return false;
-  }
-
-  try {
-    const rows = await supabaseRequest(`app_administradores?usuario_id=eq.${encodeURIComponent(userId)}&ativo=eq.true&select=usuario_id&limit=1`);
-    state.isAdmin = Boolean(rows[0]);
-  } catch (error) {
-    console.error(error);
-    state.isAdmin = false;
-  }
-
-  return state.isAdmin;
-}
-
-async function signInWithPassword(email, password) {
-  const session = await supabaseAuthRequest("token?grant_type=password", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
-  return normalizeSession(session);
-}
-
-async function getValidAccessToken() {
-  if (!state.session?.access_token) {
-    throw new Error("Sessao expirada. Entre novamente.");
-  }
-
-  const expiresAt = state.session.expires_at || 0;
-  const shouldRefresh = expiresAt && Date.now() / 1000 > expiresAt - 60;
-  if (!shouldRefresh) {
-    return state.session.access_token;
-  }
-
-  try {
-    const refreshedSession = await supabaseAuthRequest("token?grant_type=refresh_token", {
-      method: "POST",
-      body: JSON.stringify({ refresh_token: state.session.refresh_token }),
-    });
-    state.session = normalizeSession(refreshedSession);
-    saveSession(state.session);
-    await refreshAdminState();
-    sessionUser.textContent = state.isAdmin ? getSessionUserLabel() : "";
-    sessionUser.classList.toggle("hidden", !state.isAdmin);
-    historyButton.classList.toggle("hidden", !state.isAdmin);
-    newButton.classList.toggle("hidden", !state.isAdmin);
-    return state.session.access_token;
-  } catch (error) {
-    state.session = null;
-    saveSession(null);
-    renderLoginView();
-    throw error;
-  }
-}
-
-async function supabaseAuthRequest(endpoint, options = {}) {
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/${endpoint}`, {
-    ...options,
-    headers: {
-      apikey: SUPABASE_KEY,
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-
-  if (!response.ok) {
-    const details = await response.json().catch(() => null);
-    throw new Error(details?.error_description || details?.msg || details?.message || `Erro HTTP ${response.status}`);
-  }
-
-  if (response.status === 204) return null;
-  return response.json();
-}
-
-async function supabaseRequest(endpoint, options = {}) {
-  const { publicAccess, ...requestOptions } = options;
-  const accessToken = publicAccess ? SUPABASE_KEY : await getValidAccessToken();
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
-    ...requestOptions,
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      ...(requestOptions.headers || {}),
-    },
-  });
-
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(details || `Erro HTTP ${response.status}`);
   }
 
   if (response.status === 204) return null;

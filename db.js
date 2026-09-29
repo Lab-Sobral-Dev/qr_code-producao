@@ -9,9 +9,7 @@
  * local, no mesmo padrao usado pelo monitor-impressoras (SQLite local com
  * volume Docker persistente, ver DATABASE_PATH no Dockerfile).
  *
- * O login continua dual (Supabase Auth para quem entra com usuario/senha,
- * sessao local para quem entra via SSO do Gestao SBR) -- essa mudanca afeta
- * so a CAMADA DE DADOS, nao a autenticacao. Ver server.js.
+ * A autenticacao (so SSO do Gestao SBR, sem login proprio) fica em server.js.
  */
 
 const fs = require("fs");

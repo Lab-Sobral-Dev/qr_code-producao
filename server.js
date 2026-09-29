@@ -23,22 +23,14 @@
  * decisao foi tirar tambem o Supabase como BANCO DE DADOS (ja tinha saido
  * como provedor de Auth Admin, ver historico do repo) e usar SQLite local
  * (ver db.js), no mesmo padrao do monitor-impressoras (arquivo em
- * DATABASE_PATH, volume Docker persistente). O login continua dual:
+ * DATABASE_PATH, volume Docker persistente).
  *
- *   - Login manual (usuario/senha) continua no Supabase Auth (app.js,
- *     state.session) -- isso NAO mudou. app_administradores/
- *     app_perfis_usuarios tambem continuam no Supabase: sao metadado de
- *     autorizacao amarrado a auth.users, nao dado de negocio, entao ficaram
- *     de fora desta migracao (decisao documentada aqui e no README).
- *   - Sessao local (SSO do Gestao SBR) continua no cookie httpOnly assinado
- *     com SESSION_SECRET, sem tocar Supabase.
- *
- * As rotas /api/registros* abaixo aceitam QUALQUER uma das duas sessoes
- * (mesma regra de autorizacao que as RLS antigas expressavam: qualquer
- * usuario autenticado pode listar/cadastrar/editar/excluir; so o historico e
- * restrito a administrador). Para a sessao Supabase, o token e validado
- * contra o Supabase Auth (GET /auth/v1/user) -- nao precisa mais de
- * service_role key nenhuma, so a chave publica ja hardcoded em app.js.
+ * LOGIN: nao ha login proprio. O app roda embutido no Gestao SBR e a UNICA
+ * forma de acesso a tela administrativa e as rotas /api/registros* e a
+ * sessao local criada pelo SSO acima. O login manual via Supabase Auth
+ * (usuario/senha, troca de senha, app_administradores) foi removido -- este
+ * backend nao depende mais do Supabase para nada. A consulta publica do QR
+ * Code (GET /api/registros/:id/consulta) continua sem autenticacao.
  */
 
 const path = require("path");
@@ -51,13 +43,6 @@ const db = require("./db");
 
 const PORT = process.env.PORT || 3000;
 const DOCKING_SECRET = process.env.DOCKING_SECRET_QR_CODE_PRODUCAO;
-
-// Mesma URL/chave publica (anon/publishable) ja hardcoded em app.js/
-// consulta.js. Nao sao segredo -- servem so para autenticar contra o Auth do
-// Supabase (validar o access_token de quem loga com usuario/senha e checar
-// app_administradores). Sobrescrevivel via env se o projeto Supabase mudar.
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://deierwldemkevanfxrwg.supabase.co";
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "sb_publishable_MjALJQJiaIt-fLg-YBLWPw_XLLcbm-5";
 
 // Mesmos limites usados na validacao client-side de app.js (validateRecord /
 // isAllowedExpiration). Mantidos em sincronia manualmente -- nao ha build
@@ -99,7 +84,23 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname)));
+// Serve SO os arquivos do front, por lista explicita. express.static na raiz
+// do projeto expunha server.js, db.js, package.json, README etc. (e, rodando
+// local, ate data/banco.db). Arquivo novo do front precisa entrar aqui.
+const ARQUIVOS_PUBLICOS = {
+  "/index.html": "index.html",
+  "/consulta.html": "consulta.html",
+  "/app.js": "app.js",
+  "/consulta.js": "consulta.js",
+  "/styles.css": "styles.css",
+  // Gerador de QR Code no navegador (sem depender de servico externo).
+  "/vendor/qrcode.js": "node_modules/qrcode-generator/dist/qrcode.js",
+};
+
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
+for (const [rota, arquivo] of Object.entries(ARQUIVOS_PUBLICOS)) {
+  app.get(rota, (req, res) => res.sendFile(path.join(__dirname, arquivo)));
+}
 
 // So as rotas /api/registros* leem corpo JSON; limite baixo por serem
 // formularios pequenos.
@@ -137,84 +138,16 @@ function readLocalSession(req) {
   }
 }
 
-async function verificarTokenSupabase(accessToken) {
-  try {
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-    if (!response.ok) return null;
-
-    const user = await response.json();
-    return user && user.id && user.email ? { id: user.id, email: user.email } : null;
-  } catch (error) {
-    return null;
-  }
-}
-
-async function isSupabaseAdmin(accessToken, userId) {
-  try {
-    const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/app_administradores?usuario_id=eq.${encodeURIComponent(userId)}&ativo=eq.true&select=usuario_id&limit=1`,
-      {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
-    );
-    if (!response.ok) return false;
-
-    const rows = await response.json();
-    return Boolean(rows[0]);
-  } catch (error) {
-    return false;
-  }
-}
-
-// Autoriza as rotas de dado: aceita sessao local (SSO da gestao, ja tratada
-// como admin -- a permissao foi decidida no Gestao SBR) OU um access_token
-// Supabase valido (login manual, qualquer usuario autenticado -- mesma regra
-// que a policy "to authenticated using (true)" expressava antes). Preenche
-// req.actingUser para as rotas usarem no historico de auditoria.
-async function requireDataAccess(req, res, next) {
+// Autoriza as rotas de dado: exige a sessao local criada pelo SSO do Gestao
+// SBR (a permissao ja foi decidida la). Preenche req.actingUser para as
+// rotas usarem no historico de auditoria.
+function requireDataAccess(req, res, next) {
   const localSession = readLocalSession(req);
-  if (localSession.ok) {
-    req.actingUser = { source: "sso", email: localSession.email };
-    return next();
+  if (!localSession.ok) {
+    return res.status(401).json({ error: "Sem sessao valida." });
   }
 
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : null;
-
-  if (token) {
-    const supabaseUser = await verificarTokenSupabase(token);
-    if (supabaseUser) {
-      req.actingUser = { source: "supabase", accessToken: token, ...supabaseUser };
-      return next();
-    }
-  }
-
-  return res.status(401).json({ error: "Sem sessao valida." });
-}
-
-// So o historico e restrito a administrador (mesma regra da policy
-// "Permitir leitura autenticada historico", via usuario_app_admin()).
-async function requireAdminParaHistorico(req, res, next) {
-  if (req.actingUser.source === "sso") {
-    // Sessao local ja e tratada como admin em toda a tela (ver app.js) --
-    // a permissao industrial.alcool.read ja foi concedida nominalmente no
-    // Gestao SBR.
-    return next();
-  }
-
-  const admin = await isSupabaseAdmin(req.actingUser.accessToken, req.actingUser.id);
-  if (!admin) {
-    return res.status(403).json({ error: "Historico restrito ao administrador." });
-  }
-
+  req.actingUser = { email: localSession.email };
   return next();
 }
 
@@ -351,14 +284,9 @@ app.get("/api/auth/session", (req, res) => {
   return res.json({ email: session.email });
 });
 
-app.post("/api/auth/logout", (req, res) => {
-  res.clearCookie(SESSION_COOKIE_NAME, { path: "/", secure: true, sameSite: "none" });
-  return res.status(204).end();
-});
-
 // --- Dados (alcool_registros) -------------------------------------------
 // Ver comentario no topo do arquivo. Cada rota (exceto a consulta publica)
-// exige uma das duas sessoes e grava quem alterou no historico de auditoria.
+// exige a sessao do SSO e grava quem alterou no historico de auditoria.
 
 app.get("/api/registros", requireDataAccess, (req, res) => {
   return res.json(db.listarRegistros());
@@ -407,7 +335,7 @@ app.delete("/api/registros/:id", requireDataAccess, (req, res) => {
   return res.status(204).end();
 });
 
-app.get("/api/registros-historico", requireDataAccess, requireAdminParaHistorico, (req, res) => {
+app.get("/api/registros-historico", requireDataAccess, (req, res) => {
   return res.json(db.listarHistorico(100));
 });
 
