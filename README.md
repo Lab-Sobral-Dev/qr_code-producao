@@ -12,6 +12,8 @@ Antes dos cards de edicao, a tela mostra uma tabela de controle com recipiente, 
 
 O QR Code leva apenas o identificador do registro e consulta o backend (`GET /api/registros/:id/consulta`, sem autenticacao). Assim, quando a TAG e editada, a pagina do QR mostra a validade e os dados da ultima solução preparada. A imagem do QR e gerada no proprio navegador (`qrcode-generator`, servido em `/vendor/qrcode.js`), sem servico externo.
 
+O link dentro do QR usa o endereco da pagina aberta, a menos que `PUBLIC_BASE_URL` esteja definido no `.env` -- nesse caso o QR aponta para esse endereco. Em producao, defina com o endereco https publico do app para os QRs abrirem de qualquer rede. Rodando local, `localhost` nao abre no celular: use o IP da maquina (ex.: `http://192.168.0.10:3000/`), com o celular na mesma rede. QR impresso e permanente, entao escolha um endereco que nao vai mudar.
+
 ## Publicacao
 
 Este app roda como servico Docker (`Dockerfile`), tipicamente atras do mesmo host que serve o `qr_code-producao` acoplado ao Gestao SBR. **Importante:** como o cadastro agora vive num banco SQLite local ao backend, o modo antigo de publicar como pagina 100% estatica (GitHub Pages, `https://lab-sobral-dev.github.io/qr_code-producao/`) deixou de funcionar para tela administrativa e consulta publica -- ambas dependem de `/api/registros*`, que so existe quando o Express esta rodando. GitHub Pages so serve para abrir os arquivos estaticos sem nenhum dado.

@@ -75,6 +75,7 @@ before(async () => {
       DATABASE_PATH: path.join(tmpDir, "banco.db"),
       DOCKING_SECRET_QR_CODE_PRODUCAO: DOCKING_SECRET,
       SESSION_SECRET,
+      PUBLIC_BASE_URL: "http://192.168.0.10:3000/",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -139,7 +140,7 @@ test("SSO valido cria sessao e redireciona para o painel", async () => {
 
   const sessao = await chamar("/api/auth/session", { comSessao: true });
   assert.equal(sessao.status, 200);
-  assert.deepEqual(await sessao.json(), { email: "teste@lab.com" });
+  assert.deepEqual(await sessao.json(), { email: "teste@lab.com", publicBaseUrl: "http://192.168.0.10:3000/" });
 });
 
 test("CRUD com sessao, consulta publica e historico com o e-mail do SSO", async () => {
