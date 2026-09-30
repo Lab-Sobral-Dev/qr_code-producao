@@ -43,6 +43,10 @@ const db = require("./db");
 
 const PORT = process.env.PORT || 3000;
 const DOCKING_SECRET = process.env.DOCKING_SECRET_QR_CODE_PRODUCAO;
+// Endereco que vai dentro do QR Code (opcional). Sem ele, o front usa o
+// endereco da propria pagina -- que rodando local e "localhost" e nao abre
+// no celular. Ver .env.example.
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "";
 
 // Mesmos limites usados na validacao client-side de app.js (validateRecord /
 // isAllowedExpiration). Mantidos em sincronia manualmente -- nao ha build
@@ -281,7 +285,7 @@ app.get("/api/auth/session", (req, res) => {
     return res.status(401).json({ error: message });
   }
 
-  return res.json({ email: session.email });
+  return res.json(PUBLIC_BASE_URL ? { email: session.email, publicBaseUrl: PUBLIC_BASE_URL } : { email: session.email });
 });
 
 // --- Dados (alcool_registros) -------------------------------------------

@@ -98,7 +98,7 @@ async function fetchSession() {
     if (!response.ok) return null;
 
     const data = await response.json().catch(() => null);
-    return data && data.email ? { email: data.email } : null;
+    return data && data.email ? { email: data.email, publicBaseUrl: data.publicBaseUrl || "" } : null;
   } catch {
     return null;
   }
@@ -638,7 +638,9 @@ function getExpirationStatus(dateValue) {
 
 function getPublicUrl(id) {
   const item = state.items.find((record) => record.id === id);
-  const baseUrl = window.location.protocol === "file:" ? DEFAULT_PUBLIC_BASE_URL : window.location.href;
+  const baseUrl =
+    state.session?.publicBaseUrl ||
+    (window.location.protocol === "file:" ? DEFAULT_PUBLIC_BASE_URL : window.location.href);
   const url = new URL(baseUrl);
   url.pathname = `${url.pathname.replace(/\/[^/]*$/, "/")}consulta.html`;
   url.search = "";
